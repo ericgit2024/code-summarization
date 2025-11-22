@@ -5,7 +5,12 @@ from peft import prepare_model_for_kbit_training, LoraConfig, get_peft_model
 def load_gemma_model(model_id="deepseek-ai/deepseek-coder-1.3b-base"):
     """
     Loads the model in 4-bit quantization.
-    Defaults to deepseek-coder-1.3b-base as a fallback for Gemma-2b (gated).
+
+    Args:
+        model_id (str): The Hugging Face model ID.
+                        Default is "deepseek-ai/deepseek-coder-1.3b-base" (open model).
+                        To use Gemma, pass "google/gemma-2b-it" or similar, ensuring
+                        you have authenticated with `huggingface-cli login`.
     """
     bnb_config = BitsAndBytesConfig(
         load_in_4bit=True,

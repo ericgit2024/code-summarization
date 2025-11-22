@@ -65,11 +65,11 @@ class InferencePipeline:
                 temperature=0.2
             )
 
-        # Decode and strip the prompt from the output
-        generated_text = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-        # Simple splitting to get the new generated part
-        # Ideally, we'd check where the prompt ends
-        summary = generated_text[len(full_prompt):].strip()
+        # Decode and strip the prompt from the output by slicing token IDs
+        # Calculate the length of the input tokens to slice the output
+        input_len = inputs.input_ids.shape[1]
+        generated_tokens = outputs[0][input_len:]
+        summary = self.tokenizer.decode(generated_tokens, skip_special_tokens=True).strip()
 
         return summary
 
