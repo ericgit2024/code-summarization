@@ -1,0 +1,14 @@
+transformers
+peft
+bitsandbytes
+accelerate
+sentence-transformers
+faiss-cpu
+networkx
+graphviz
+streamlit
+datasets
+evaluate
+rouge_score
+nltk
+py2cfg
