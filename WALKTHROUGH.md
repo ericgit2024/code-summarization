@@ -74,9 +74,39 @@ streamlit run src/ui/app.py
 
 ## 7. Model Access & Configuration
 
-*   **Gemma Model:** By default, the code may be configured to use `google/gemma-2b-it`. This is a gated model on Hugging Face.
-    *   **To use Gemma:** You must have a Hugging Face account, accept the license, and log in using `huggingface-cli login`.
-*   **Fallback:** If access is denied or not configured, the system is set up to fallback to `deepseek-ai/deepseek-coder-1.3b-base` (or you can manually change the default in `src/model/model_loader.py`).
+### Setting up HuggingFace Authentication
+
+The system uses the **Gemma model** (`google/gemma-2b`), which is a gated model on Hugging Face. You need to authenticate using an environment variable:
+
+1. **Get your HuggingFace token:**
+   - Go to [HuggingFace Settings > Access Tokens](https://huggingface.co/settings/tokens)
+   - Create a new token or copy an existing one
+   - Accept the Gemma model license at [google/gemma-2b](https://huggingface.co/google/gemma-2b)
+
+2. **Set the environment variable:**
+   
+   **Windows PowerShell:**
+   ```powershell
+   $env:HF_TOKEN="your_token_here"
+   ```
+   
+   **Linux/Mac:**
+   ```bash
+   export HF_TOKEN="your_token_here"
+   ```
+   
+   **For persistent setup (recommended):**
+   - Windows: Add to your PowerShell profile or set as a system environment variable
+   - Linux/Mac: Add the export command to your `~/.bashrc` or `~/.zshrc`
+
+3. **Verify the token is set:**
+   ```bash
+   # Windows PowerShell
+   echo $env:HF_TOKEN
+   
+   # Linux/Mac
+   echo $HF_TOKEN
+   ```
 
 ## 8. Project Structure
 

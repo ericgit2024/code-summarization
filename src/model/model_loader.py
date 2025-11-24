@@ -1,8 +1,7 @@
+import os
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from peft import prepare_model_for_kbit_training, LoraConfig, get_peft_model
-
-HF_TOKEN = "YOUR_HF_TOKEN_HERE" # TODO: Replace with your actual Hugging Face token
 
 def load_gemma_model(model_id="google/gemma-2b"):
     """
@@ -11,20 +10,32 @@ def load_gemma_model(model_id="google/gemma-2b"):
     Args:
         model_id (str): The Hugging Face model ID.
                         Default is "google/gemma-2b".
-                        Ensure you have authenticated with `huggingface-cli login` or provided HF_TOKEN.
+                        
+    Environment Variables:
+        HF_TOKEN: Your Hugging Face authentication token (required for gated models like Gemma)
     """
+    # Get HuggingFace token from environment variable
+    hf_token = os.getenv("HF_TOKEN")
+    if not hf_token:
+        raise ValueError(
+            "HF_TOKEN environment variable not set. "
+            "Please set it with your Hugging Face token: "
+            "export HF_TOKEN='your_token_here' (Linux/Mac) or "
+            "$env:HF_TOKEN='your_token_here' (Windows PowerShell)"
+        )
+    
     bnb_config = BitsAndBytesConfig(
         load_in_4bit=True,
         bnb_4bit_quant_type="nf4",
         bnb_4bit_compute_dtype=torch.float16,
     )
 
-    tokenizer = AutoTokenizer.from_pretrained(model_id, token=HF_TOKEN)
+    tokenizer = AutoTokenizer.from_pretrained(model_id, token=hf_token)
     model = AutoModelForCausalLM.from_pretrained(
         model_id,
         quantization_config=bnb_config,
         device_map="auto",
-        token=HF_TOKEN
+        token=hf_token
     )
 
     # Enable gradient checkpointing for memory efficiency
