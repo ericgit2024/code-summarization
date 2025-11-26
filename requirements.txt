@@ -12,3 +12,4 @@ evaluate
 rouge_score
 nltk
 py2cfg
+pygraphviz

@@ -49,13 +49,13 @@ def train(
             example['code'],
             retrieved_codes,
             retrieved_docstrings,
-            instruction="Summarize the following code, focusing on internal logic and dependencies."
+            instruction="Provide a detailed, narrative summary of the following code. Focus on its purpose, internal logic, and dependencies. Do not include any code snippets in the summary."
         )
 
         # Gemma chat format or simple completion?
         # For base model completion, we append the target summary.
         # Format: Prompt + Summary
-        text = f"{full_prompt} {example['docstring']}"
+        text = f"{full_prompt} {example['summary']}"
 
         return {"text": text}
 
