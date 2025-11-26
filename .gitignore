@@ -1,8 +1,5 @@
 __pycache__/
 *.pkl
 *.bin
-*.pt
-*.pth
-logs/
 lora_model/
-codet5_lora_finetuned/
+streamlit.log
