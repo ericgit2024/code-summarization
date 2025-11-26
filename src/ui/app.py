@@ -7,6 +7,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")
 from src.model.inference import InferencePipeline
 from src.utils.repo_analysis import RepoAnalyzer
 from src.ui.visualization import visualize_dependency_graph
+from src.structure.graph_utils import visualize_cfg
 import os
 
 st.set_page_config(page_title="SP-RAG Code Summarizer", layout="wide")
@@ -40,7 +41,13 @@ if st.button("Generate Summary"):
             # For full repo, we would use RepoAnalyzer
             st.subheader("Structural Analysis")
             # Mock dependency graph for the single function
-            st.write("Dependency graph visualization would appear here for full repository analysis.")
+            # st.write("Dependency graph visualization would appear here for full repository analysis.")
+            
+            cfg_graph = visualize_cfg(code_input)
+            if cfg_graph:
+                st.graphviz_chart(cfg_graph)
+            else:
+                st.error("Could not generate CFG.")
 
     elif repo_url:
         with st.spinner("Cloning and Analyzing Repository..."):

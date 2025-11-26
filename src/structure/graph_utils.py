@@ -1,4 +1,44 @@
 from py2cfg import CFGBuilder
+import graphviz
+
+def visualize_cfg(code):
+    """
+    Generates a visual Control Flow Graph (CFG) from the given Python code using Graphviz.
+
+    Args:
+        code (str): The Python code.
+
+    Returns:
+        graphviz.Digraph: The graphviz object representing the CFG.
+    """
+    try:
+        cfg_builder = CFGBuilder()
+        cfg = cfg_builder.build_from_src("input_code", code)
+        
+        dot = graphviz.Digraph(comment='Control Flow Graph')
+        dot.attr(rankdir='TB')
+        
+        for block_id, block in cfg.blocks.items():
+            # Create label for the block
+            label = f"Block {block_id}\\n"
+            # Limit statements to avoid huge nodes
+            statements = [str(s).strip() for s in block.statements]
+            if len(statements) > 5:
+                label += "\\n".join(statements[:5]) + "\\n..."
+            else:
+                label += "\\n".join(statements)
+                
+            dot.node(str(block_id), label, shape='box')
+            
+            for exit in block.exits:
+                dot.edge(str(block_id), str(exit.target.id))
+                
+        return dot
+    except Exception as e:
+        # Return a simple error graph or None
+        err_dot = graphviz.Digraph()
+        err_dot.node('error', f"Error generating CFG: {e}")
+        return err_dot
 
 def get_cfg(code):
     """
@@ -12,7 +52,7 @@ def get_cfg(code):
     """
     try:
         cfg_builder = CFGBuilder()
-        cfg = cfg_builder.build_from_src(code)
+        cfg = cfg_builder.build_from_src("input_code", code)
 
         # Convert the CFG graph to a textual representation
         # This is a simplified representation for prompting purposes
