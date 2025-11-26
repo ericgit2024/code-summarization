@@ -55,7 +55,7 @@ def train(
         # Gemma chat format or simple completion?
         # For base model completion, we append the target summary.
         # Format: Prompt + Summary
-        text = f"{full_prompt} {example['docstring']}"
+        text = f"{full_prompt} {example['summary']}"
 
         return {"text": text}
 
