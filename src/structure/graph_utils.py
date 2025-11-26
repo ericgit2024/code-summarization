@@ -72,7 +72,7 @@ def get_cfg(code):
                 exits = ", ".join([str(e.target.id) for e in block.exits])
                 cfg_text.append(f"  Exits to: {exits}")
 
-        return "\n".join(cfg_text)
+        return "\\n".join(cfg_text)
 
     except Exception as e:
         return f"Error generating CFG: {e}"
