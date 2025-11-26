@@ -36,7 +36,7 @@ Ensure you have the following installed on your system:
 Before running inference or training, you need to build the vector index for Retrieval-Augmented Generation (RAG). This script loads the dataset, encodes code snippets, and builds a FAISS index.
 
 ```bash
-python3 -m src.scripts.index_codebase
+python3 -m src.scripts.build_rag_index
 ```
 *   **Output:** Creates a `rag_index.pkl` file in the root directory.
 

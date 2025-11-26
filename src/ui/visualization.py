@@ -24,11 +24,9 @@ def visualize_dependency_graph(dependencies, output_path="dependency_graph"):
         print(f"Graph saved to {output_path}.png")
         return f"{output_path}.png"
     except ImportError:
-        print("pygraphviz not installed. Please install it for visualization.")
-        return None
+        return "pygraphviz is not installed. Please install it for visualization."
     except Exception as e:
-        print(f"Error visualizing graph: {e}")
-        return None
+        return f"Error visualizing dependency graph: {e}"
 
 def visualize_call_graph(graph, output_path="call_graph"):
     """
@@ -46,8 +44,6 @@ def visualize_call_graph(graph, output_path="call_graph"):
         print(f"Graph saved to {output_path}.png")
         return f"{output_path}.png"
     except ImportError:
-        print("pygraphviz not installed. Please install it for visualization.")
-        return None
+        return "pygraphviz is not installed. Please install it for visualization."
     except Exception as e:
-        print(f"Error visualizing graph: {e}")
-        return None
+        return f"Error visualizing call graph: {e}"
