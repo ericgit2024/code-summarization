@@ -43,6 +43,35 @@ class RepoAnalyzer:
                         print(f"Error parsing {filepath}: {e}")
         return dependencies
 
+    def find_python_files(self):
+        """
+        Scans the repository for all .py files.
+        """
+        python_files = []
+        for root, _, files in os.walk(self.target_dir):
+            for file in files:
+                if file.endswith(".py"):
+                    python_files.append(os.path.relpath(os.path.join(root, file), self.target_dir))
+        return python_files
+
+    def extract_function_code(self, file_path, function_name):
+        """
+        Extracts the source code of a specific function from a file.
+        """
+        try:
+            full_path = os.path.join(self.target_dir, file_path)
+            with open(full_path, "r", encoding="utf-8") as f:
+                source = f.read()
+                tree = ast.parse(source)
+
+            for node in ast.walk(tree):
+                if isinstance(node, ast.FunctionDef) and node.name == function_name:
+                    return ast.get_source_segment(source, node)
+            return None # Function not found
+        except Exception as e:
+            print(f"Error extracting function {function_name} from {file_path}: {e}")
+            return None
+
 if __name__ == "__main__":
     # Test with a small repo
     analyzer = RepoAnalyzer("https://github.com/psf/requests")

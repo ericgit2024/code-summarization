@@ -18,9 +18,13 @@ def visualize_cfg(code):
         dot = graphviz.Digraph(comment='Control Flow Graph')
         dot.attr(rankdir='TB')
         
-        for block_id, block in cfg.blocks.items():
+        all_blocks = []
+        for func_cfg in cfg.functioncfgs.values():
+            all_blocks.extend(list(func_cfg.own_blocks()))
+
+        for block in all_blocks:
             # Create label for the block
-            label = f"Block {block_id}\\n"
+            label = f"Block {block.id}\\n"
             # Limit statements to avoid huge nodes
             statements = [str(s).strip() for s in block.statements]
             if len(statements) > 5:
@@ -28,10 +32,10 @@ def visualize_cfg(code):
             else:
                 label += "\\n".join(statements)
                 
-            dot.node(str(block_id), label, shape='box')
+            dot.node(str(block.id), label, shape='box')
             
             for exit in block.exits:
-                dot.edge(str(block_id), str(exit.target.id))
+                dot.edge(str(block.id), str(exit.target.id))
                 
         return dot
     except Exception as e:
@@ -54,13 +58,13 @@ def get_cfg(code):
         cfg_builder = CFGBuilder()
         cfg = cfg_builder.build_from_src("input_code", code)
 
-        # Convert the CFG graph to a textual representation
-        # This is a simplified representation for prompting purposes
-        # You might want to refine this based on the output format of py2cfg
-
         cfg_text = []
-        for block_id, block in cfg.blocks.items():
-            cfg_text.append(f"Block {block_id}:")
+        all_blocks = []
+        for func_cfg in cfg.functioncfgs.values():
+            all_blocks.extend(list(func_cfg.own_blocks()))
+
+        for block in all_blocks:
+            cfg_text.append(f"Block {block.id}:")
             for statement in block.statements:
                 cfg_text.append(f"  {statement}")
 
@@ -68,7 +72,7 @@ def get_cfg(code):
                 exits = ", ".join([str(e.target.id) for e in block.exits])
                 cfg_text.append(f"  Exits to: {exits}")
 
-        return "\n".join(cfg_text)
+        return "\\n".join(cfg_text)
 
     except Exception as e:
         return f"Error generating CFG: {e}"
