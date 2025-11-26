@@ -29,3 +29,25 @@ def visualize_dependency_graph(dependencies, output_path="dependency_graph"):
     except Exception as e:
         print(f"Error visualizing graph: {e}")
         return None
+
+def visualize_call_graph(graph, output_path="call_graph"):
+    """
+    Visualizes the call graph using graphviz.
+
+    Args:
+        graph (networkx.DiGraph): The call graph.
+        output_path (str): Path to save the graph image.
+    """
+    try:
+        # Convert to Graphviz AGraph
+        A = nx.nx_agraph.to_agraph(graph)
+        A.layout('dot')
+        A.draw(f"{output_path}.png")
+        print(f"Graph saved to {output_path}.png")
+        return f"{output_path}.png"
+    except ImportError:
+        print("pygraphviz not installed. Please install it for visualization.")
+        return None
+    except Exception as e:
+        print(f"Error visualizing graph: {e}")
+        return None

@@ -6,7 +6,7 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from src.model.inference import InferencePipeline
 from src.utils.repo_analysis import RepoAnalyzer
-from src.ui.visualization import visualize_dependency_graph
+from src.ui.visualization import visualize_dependency_graph, visualize_call_graph
 from src.structure.graph_utils import visualize_cfg
 
 st.set_page_config(page_title="SP-RAG Code Summarizer", layout="wide")
@@ -28,6 +28,8 @@ if 'dependencies' not in st.session_state:
     st.session_state.dependencies = None
 if 'analyzer' not in st.session_state:
     st.session_state.analyzer = None
+if 'call_graph' not in st.session_state:
+    st.session_state.call_graph = None
 
 
 # Input Section
@@ -41,6 +43,7 @@ if st.button("Analyze Repository"):
             st.session_state.analyzer.clone_repo()
             st.session_state.python_files = st.session_state.analyzer.find_python_files()
             st.session_state.dependencies = st.session_state.analyzer.get_dependencies()
+            st.session_state.call_graph = st.session_state.analyzer.build_call_graph()
             st.success("Repository analysis complete.")
     else:
         st.error("Please provide a Repo URL.")
@@ -88,6 +91,14 @@ if st.session_state.dependencies:
         st.image(img_path)
     else:
         st.warning("Could not visualize the dependency graph. Ensure graphviz is installed.")
+
+if st.session_state.call_graph:
+    st.subheader("Call Graph")
+    img_path = visualize_call_graph(st.session_state.call_graph)
+    if img_path and os.path.exists(img_path):
+        st.image(img_path)
+    else:
+        st.warning("Could not visualize the call graph. Ensure graphviz is installed.")
 
 
 st.sidebar.header("About")
