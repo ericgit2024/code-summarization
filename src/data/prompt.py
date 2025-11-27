@@ -25,10 +25,15 @@ def construct_prompt(structural_prompt, query_code, retrieved_codes, retrieved_d
     # Default instruction if none provided
     if not instruction:
         instruction = (
-            "You are an expert code summarizer. Your task is to write a concise, natural language summary "
-            "of the 'Target Code' provided below. Use the 'Context' information to understand the code's "
-            "dependencies and role within the system, but do NOT include raw code or graph data in your summary. "
-            "Focus on WHAT the code does and WHY."
+            "You are an expert code summarizer. Your task is to write a comprehensive natural language summary "
+            "of the 'Target Code' provided below.\n\n"
+            "CRITICAL: You MUST incorporate the 'Repository Dependency Context' into your summary. "
+            "Explain how this function fits into the broader system by explicitly mentioning:\n"
+            "1. Which functions call this function (its usage context).\n"
+            "2. Which key functions this function calls (its dependencies).\n"
+            "3. The core logic of the function itself.\n\n"
+            "Do not list these as bullet points. Weave them into a single, cohesive narrative paragraph. "
+            "Focus on the flow of data and control."
         )
 
     prompt = f"### Instruction\n{instruction}\n\n"
