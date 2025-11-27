@@ -19,7 +19,12 @@ def build_index(
 
     print("Building RAG index...")
     rag_system = RAGSystem()
-    rag_system.build_index(dataset)
+
+    # Extract codes and summaries from the dataset
+    codes = [example['code'] for example in dataset]
+    summaries = [example['summary'] for example in dataset]
+
+    rag_system.build_index(codes, summaries)
 
     print(f"Saving RAG index to {output_path}...")
     with open(output_path, "wb") as f:
