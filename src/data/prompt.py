@@ -21,31 +21,35 @@ def construct_structural_prompt(code_string):
 def construct_prompt(structural_prompt, query_code, retrieved_codes, retrieved_docstrings, instruction=None, repo_context=None):
     """
     Combines structural prompt, retrieved examples, and target code into a single prompt string.
-
-    Args:
-        structural_prompt: The structural prompt of the query code (output of construct_structural_prompt).
-        query_code: The code to be summarized.
-        retrieved_codes: A list of retrieved similar code snippets.
-        retrieved_docstrings: A list of docstrings for the retrieved codes.
-        instruction: Optional instruction to guide the LLM.
-        repo_context: Optional string containing repository-level context (callers/callees).
-
-    Returns:
-        A combined prompt string.
     """
-    prompt = ""
+    # Default instruction if none provided
+    if not instruction:
+        instruction = (
+            "You are an expert code summarizer. Your task is to write a concise, natural language summary "
+            "of the 'Target Code' provided below. Use the 'Context' information to understand the code's "
+            "dependencies and role within the system, but do NOT include raw code or graph data in your summary. "
+            "Focus on WHAT the code does and WHY."
+        )
 
-    if instruction:
-        prompt += f"Instruction: {instruction}\n\n"
+    prompt = f"### Instruction\n{instruction}\n\n"
 
+    # Context Section
+    prompt += "### Context\n"
     if repo_context:
-        prompt += f"Repository Context:\n{repo_context}\n\n"
+        prompt += f"**Repository Dependency Context**:\n{repo_context}\n\n"
+    
+    prompt += f"**Structural Analysis (AST/CFG/Call Graph)**:\n{structural_prompt}\n\n"
 
-    prompt += f"Structural Context:\n{structural_prompt}\n\n"
+    # Few-shot examples (if any)
+    if retrieved_codes:
+        prompt += "### Examples\n"
+        for i in range(len(retrieved_codes)):
+            prompt += f"Example {i+1} Code:\n{retrieved_codes[i]}\n"
+            prompt += f"Example {i+1} Summary:\n{retrieved_docstrings[i]}\n\n"
 
-    for i in range(len(retrieved_codes)):
-        prompt += f"Retrieved Code Example {i+1}:\n{retrieved_codes[i]}\n"
-        prompt += f"Retrieved Summary {i+1}:\n{retrieved_docstrings[i]}\n\n"
-
-    prompt += f"Code to Summarize:\n{query_code}\n\nSummary:"
+    # Target Code
+    prompt += f"### Target Code\n{query_code}\n\n"
+    
+    # Output Indicator
+    prompt += "### Natural Language Summary\n"
     return prompt

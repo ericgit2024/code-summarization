@@ -84,21 +84,28 @@ class InferencePipeline:
         )
 
         # 4. Generate
-        inputs = self.tokenizer(full_prompt, return_tensors="pt", truncation=True, max_length=1024).to(self.model.device)
+        # Increase max_length to avoid truncating the prompt too early
+        # Gemma has an 8k context window, so 4096 is safe(r)
+        max_input_length = 4096 
+        inputs = self.tokenizer(full_prompt, return_tensors="pt", truncation=True, max_length=max_input_length).to(self.model.device)
+        
+        input_len = inputs.input_ids.shape[1]
+        print(f"Input Token Length: {input_len}")
+        if input_len >= max_input_length:
+            print("WARNING: Prompt was truncated! This may lead to poor results.")
 
         with torch.no_grad():
             outputs = self.model.generate(
                 **inputs,
-                max_new_tokens=512,
+                max_new_tokens=256, # Reduce max tokens for summary to encourage conciseness
                 do_sample=True,
-                temperature=0.2,
-                repetition_penalty=1.2,
+                temperature=0.1, # Lower temperature for more deterministic/focused output
+                repetition_penalty=1.3, # Increase penalty to reduce repetition
                 pad_token_id=self.tokenizer.eos_token_id
             )
 
         # Decode and strip the prompt from the output by slicing token IDs
         # Calculate the length of the input tokens to slice the output
-        input_len = inputs.input_ids.shape[1]
         generated_tokens = outputs[0][input_len:]
         summary = self.tokenizer.decode(generated_tokens, skip_special_tokens=True).strip()
 
