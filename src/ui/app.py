@@ -130,19 +130,19 @@ if st.button("Generate Summary"):
 
 if st.session_state.dependencies:
     st.subheader("Dependency Graph")
-    result = visualize_dependency_graph(st.session_state.dependencies)
-    if result.endswith(".png") and os.path.exists(result):
-        st.image(result)
+    dep_graph_viz = visualize_dependency_graph(st.session_state.dependencies)
+    if dep_graph_viz:
+        st.graphviz_chart(dep_graph_viz)
     else:
-        st.warning(result)
+        st.error("Could not generate dependency graph.")
 
 if st.session_state.call_graph:
     st.subheader("Call Graph")
-    result = visualize_call_graph(st.session_state.call_graph)
-    if result.endswith(".png") and os.path.exists(result):
-        st.image(result)
+    call_graph_viz = visualize_call_graph(st.session_state.call_graph)
+    if call_graph_viz:
+        st.graphviz_chart(call_graph_viz)
     else:
-        st.warning(result)
+        st.error("Could not generate call graph.")
 
 
 st.sidebar.header("About")

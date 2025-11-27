@@ -1,49 +1,51 @@
 import networkx as nx
 import graphviz
 
-def visualize_dependency_graph(dependencies, output_path="dependency_graph"):
+def visualize_dependency_graph(dependencies):
     """
     Visualizes the dependency graph using graphviz.
 
     Args:
         dependencies (dict): A dictionary mapping files to their imports.
-        output_path (str): Path to save the graph image.
+
+    Returns:
+        graphviz.Digraph: The graphviz object or None if error.
     """
-    G = nx.DiGraph()
-
-    for file, imports in dependencies.items():
-        G.add_node(file)
-        for imp in imports:
-            G.add_edge(file, imp)
-
     try:
-        # Convert to Graphviz AGraph
-        A = nx.nx_agraph.to_agraph(G)
-        A.layout('dot')
-        A.draw(f"{output_path}.png")
-        print(f"Graph saved to {output_path}.png")
-        return f"{output_path}.png"
-    except ImportError:
-        return "pygraphviz is not installed. Please install it for visualization."
-    except Exception as e:
-        return f"Error visualizing dependency graph: {e}"
+        dot = graphviz.Digraph(comment='Dependency Graph')
+        dot.attr(rankdir='LR')
 
-def visualize_call_graph(graph, output_path="call_graph"):
+        for file, imports in dependencies.items():
+            dot.node(file, file)
+            for imp in imports:
+                dot.edge(file, imp)
+
+        return dot
+    except Exception as e:
+        print(f"Error visualizing dependency graph: {e}")
+        return None
+
+def visualize_call_graph(graph):
     """
     Visualizes the call graph using graphviz.
 
     Args:
         graph (networkx.DiGraph): The call graph.
-        output_path (str): Path to save the graph image.
+
+    Returns:
+        graphviz.Digraph: The graphviz object or None if error.
     """
     try:
-        # Convert to Graphviz AGraph
-        A = nx.nx_agraph.to_agraph(graph)
-        A.layout('dot')
-        A.draw(f"{output_path}.png")
-        print(f"Graph saved to {output_path}.png")
-        return f"{output_path}.png"
-    except ImportError:
-        return "pygraphviz is not installed. Please install it for visualization."
+        dot = graphviz.Digraph(comment='Call Graph')
+        dot.attr(rankdir='LR')
+
+        for node in graph.nodes():
+            dot.node(str(node), str(node))
+
+        for u, v in graph.edges():
+            dot.edge(str(u), str(v))
+
+        return dot
     except Exception as e:
-        return f"Error visualizing call graph: {e}"
+        print(f"Error visualizing call graph: {e}")
+        return None
