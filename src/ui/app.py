@@ -3,6 +3,7 @@ import sys
 import os
 import shutil
 import networkx as nx
+import tempfile
 
 # Add the project root to sys.path to resolve 'src' module
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
@@ -32,13 +33,17 @@ if 'analyzer' not in st.session_state:
     st.session_state.analyzer = None
 if 'call_graph' not in st.session_state:
     st.session_state.call_graph = None
+if 'repo_handler' not in st.session_state:
+    st.session_state.repo_handler = None  # Store TemporaryDirectory object
 if 'repo_dir' not in st.session_state:
-    st.session_state.repo_dir = "downloaded_repo"
+    st.session_state.repo_dir = None
 
 def cleanup_repo():
-    if os.path.exists(st.session_state.repo_dir):
-        shutil.rmtree(st.session_state.repo_dir)
-        print(f"Cleaned up {st.session_state.repo_dir}")
+    if st.session_state.repo_handler:
+        st.session_state.repo_handler.cleanup()
+        st.session_state.repo_handler = None
+        st.session_state.repo_dir = None
+        print("Cleaned up temporary repository.")
 
 # Input Section
 st.header("Input")
@@ -48,6 +53,11 @@ if st.button("Analyze Repository"):
     if repo_url:
         with st.spinner("Cloning and Analyzing Repository..."):
             cleanup_repo()
+            # Create a new temporary directory
+            temp_dir = tempfile.TemporaryDirectory(prefix="repo_")
+            st.session_state.repo_handler = temp_dir
+            st.session_state.repo_dir = temp_dir.name
+
             st.session_state.analyzer = RepoAnalyzer(repo_url, target_dir=st.session_state.repo_dir)
             st.session_state.analyzer.clone_repo()
             st.session_state.python_files = st.session_state.analyzer.find_python_files()
