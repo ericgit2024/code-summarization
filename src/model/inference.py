@@ -1,5 +1,5 @@
 from src.structure.ast_utils import get_structural_prompt
-from src.structure.graph_utils import get_cfg
+from src.structure.graph_utils import get_cfg, get_pdg
 from src.data.prompt import construct_prompt
 from src.retrieval.rag import RAGSystem
 from src.model.model_loader import load_gemma_model, setup_lora
@@ -36,8 +36,10 @@ class InferencePipeline:
         # 1. Extract Structure
         structural_prompt = get_structural_prompt(code)
         cfg_text = get_cfg(code)
+        pdg_text = get_pdg(code)
+        
         # Combining structure manually here or use construct_structural_prompt if exported
-        full_structure = f"AST:\n{structural_prompt}\n\nCFG:\n{cfg_text}"
+        full_structure = f"AST:\n{structural_prompt}\n\nCFG:\n{cfg_text}\n\nPDG:\n{pdg_text}"
 
         # 2. Retrieve Context
         retrieved_codes = []
