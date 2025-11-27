@@ -17,6 +17,14 @@ class DefUseVisitor(ast.NodeVisitor):
     def visit_arg(self, node):
         self.defs.add(node.arg)
 
+    def visit_FunctionDef(self, node):
+        self.defs.add(node.name)
+        # Do not visit the body of the function
+
+    def visit_ClassDef(self, node):
+        self.defs.add(node.name)
+        # Do not visit the body of the class
+
 def get_defs_uses(node):
     visitor = DefUseVisitor()
     visitor.visit(node)
@@ -51,14 +59,12 @@ def compute_data_dependencies(cfg_blocks, cfg_graph):
     Computes data dependencies using Reaching Definitions analysis.
     """
     gen = {}
-    kill = {}
     block_defs = {}
     block_uses = {}
     
     for block in cfg_blocks:
         bid = block.id
         gen[bid] = set()
-        kill[bid] = set()
         b_defs = set()
         b_uses = set()
         
@@ -74,12 +80,6 @@ def compute_data_dependencies(cfg_blocks, cfg_graph):
         block_uses[bid] = b_uses
 
     all_blocks = [b.id for b in cfg_blocks]
-    for bid in all_blocks:
-        for var, _ in gen[bid]:
-            for other_bid in all_blocks:
-                if other_bid != bid:
-                    if var in block_defs[other_bid]:
-                        kill[bid].add((var, other_bid))
 
     in_sets = {bid: set() for bid in all_blocks}
     out_sets = {bid: gen[bid].copy() for bid in all_blocks}
@@ -101,6 +101,7 @@ def compute_data_dependencies(cfg_blocks, cfg_graph):
                 in_sets[bid] = new_in
                 changed = True
             
+            # Kill logic: remove incoming definitions if the variable is redefined in this block
             surviving_in = set()
             for var, source_block in in_sets[bid]:
                 if var not in block_defs[bid]:
