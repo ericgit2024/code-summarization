@@ -1,9 +1,9 @@
 from src.structure.ast_utils import get_structural_prompt
-from src.structure.graph_utils import get_cfg, get_pdg
+from src.structure.graph_utils import get_cfg, get_pdg, get_call_graph
 
 def construct_structural_prompt(code_string):
     """
-    Constructs the full structural prompt by fusing AST, CFG, and PDG information.
+    Constructs the full structural prompt by fusing AST, CFG, PDG, and Call Graph information.
 
     Args:
         code_string (str): The python code.
@@ -14,10 +14,11 @@ def construct_structural_prompt(code_string):
     ast_prompt = get_structural_prompt(code_string)
     cfg_prompt = get_cfg(code_string)
     pdg_prompt = get_pdg(code_string)
+    cg_prompt = get_call_graph(code_string)
 
-    return f"AST:\n{ast_prompt}\n\nCFG:\n{cfg_prompt}\n\nPDG:\n{pdg_prompt}"
+    return f"AST:\n{ast_prompt}\n\nCFG:\n{cfg_prompt}\n\nPDG:\n{pdg_prompt}\n\nCall Graph:\n{cg_prompt}"
 
-def construct_prompt(structural_prompt, query_code, retrieved_codes, retrieved_docstrings, instruction=None):
+def construct_prompt(structural_prompt, query_code, retrieved_codes, retrieved_docstrings, instruction=None, repo_context=None):
     """
     Combines structural prompt, retrieved examples, and target code into a single prompt string.
 
@@ -27,6 +28,7 @@ def construct_prompt(structural_prompt, query_code, retrieved_codes, retrieved_d
         retrieved_codes: A list of retrieved similar code snippets.
         retrieved_docstrings: A list of docstrings for the retrieved codes.
         instruction: Optional instruction to guide the LLM.
+        repo_context: Optional string containing repository-level context (callers/callees).
 
     Returns:
         A combined prompt string.
@@ -35,6 +37,9 @@ def construct_prompt(structural_prompt, query_code, retrieved_codes, retrieved_d
 
     if instruction:
         prompt += f"Instruction: {instruction}\n\n"
+
+    if repo_context:
+        prompt += f"Repository Context:\n{repo_context}\n\n"
 
     prompt += f"Structural Context:\n{structural_prompt}\n\n"
 

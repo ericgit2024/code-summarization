@@ -108,15 +108,33 @@ The system uses the **Gemma model** (`google/gemma-2b`), which is a gated model 
    echo $HF_TOKEN
    ```
 
-## 8. Project Structure
+## 8. Repository-Level Analysis
+
+The system now supports analyzing the entire repository to generate context-aware summaries. It builds a dependency graph (Call Graph) of all functions in the repo.
+
+**Usage:**
+To summarize a specific function with its repository context (callers/callees), use the `InferencePipeline` with a `repo_path`:
+
+```python
+from src.model.inference import InferencePipeline
+
+# Initialize with repo path
+pipeline = InferencePipeline(repo_path="path/to/your/repo")
+
+# Summarize a specific function by name
+summary = pipeline.summarize(function_name="target_function")
+print(summary)
+```
+
+## 9. Project Structure
 
 *   `src/data/`: Dataset loading (`dataset.py`) and Prompt construction (`prompt.py`).
-*   `src/structure/`: Tools to extract AST (`ast_utils.py`) and CFG (`graph_utils.py`).
+*   `src/structure/`: Tools to extract AST (`ast_utils.py`), CFG (`graph_utils.py`), and Repo Graph (`repo_graph.py`).
 *   `src/retrieval/`: RAG system logic (`rag.py`).
 *   `src/model/`: Model loading (`model_loader.py`), training (`trainer.py`), and inference (`inference.py`).
 *   `src/ui/`: Streamlit app (`app.py`) and visualization (`visualization.py`).
-*   `src/utils/`: Helper scripts like metrics (`metrics.py`) and repo analysis (`repo_analysis.py`).
+*   `src/utils/`: Helper scripts like metrics (`metrics.py`).
 
-## 9. Known Limitations
+## 10. Known Limitations
 
 *   **PDG Extraction:** The Program Dependence Graph (PDG) extraction is currently a placeholder. Full PDG extraction requires complex static analysis tools which are beyond the scope of this prototype. The system relies primarily on AST and CFG for structural prompting.

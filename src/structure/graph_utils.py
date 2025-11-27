@@ -242,3 +242,66 @@ def get_pdg(code):
 
     except Exception as e:
         return f"Error generating PDG: {e}"
+
+def extract_call_graph_edges(code):
+    """
+    Extracts call graph edges from the given Python code.
+    Returns a dictionary mapping function names to lists of called function names.
+    """
+    try:
+        tree = ast.parse(code)
+        
+        class CallVisitor(ast.NodeVisitor):
+            def __init__(self):
+                self.current_func = "Module"
+                self.calls = {} # Map function name to list of called functions
+
+            def visit_FunctionDef(self, node):
+                prev_func = self.current_func
+                self.current_func = node.name
+                if self.current_func not in self.calls:
+                    self.calls[self.current_func] = []
+                self.generic_visit(node)
+                self.current_func = prev_func
+
+            def visit_Call(self, node):
+                if isinstance(node.func, ast.Name):
+                    called_func = node.func.id
+                elif isinstance(node.func, ast.Attribute):
+                    called_func = node.func.attr
+                else:
+                    called_func = "unknown"
+                
+                if self.current_func not in self.calls:
+                    self.calls[self.current_func] = []
+                self.calls[self.current_func].append(called_func)
+                self.generic_visit(node)
+
+        visitor = CallVisitor()
+        visitor.visit(tree)
+        return visitor.calls
+    except Exception as e:
+        print(f"Error extracting call graph edges: {e}")
+        return {}
+
+def get_call_graph(code):
+    """
+    Generates a Call Graph from the given Python code.
+    Identifies which functions call which other functions.
+    """
+    try:
+        calls = extract_call_graph_edges(code)
+        call_graph = []
+
+        for func, func_calls in calls.items():
+            if func_calls:
+                unique_calls = sorted(list(set(func_calls)))
+                call_graph.append(f"Function {func} calls: {', '.join(unique_calls)}")
+        
+        if not call_graph:
+            return "No function calls found."
+
+        return "\n".join(call_graph)
+
+    except Exception as e:
+        return f"Error generating Call Graph: {e}"

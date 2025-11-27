@@ -34,7 +34,7 @@ def train(
     print("Loading and preparing dataset...")
     dataset = load_and_process_dataset(split="train")
     # Use a subset for quicker training demonstration
-    dataset = dataset.select(range(100))
+    dataset = dataset.select(range(1000))
 
     def format_prompt(example):
         structural_prompt = construct_structural_prompt(example['code'])
