@@ -64,7 +64,9 @@ class InferencePipeline:
                 **inputs,
                 max_new_tokens=128,
                 do_sample=True,
-                temperature=0.2
+                temperature=0.2,
+                repetition_penalty=1.2,
+                pad_token_id=self.tokenizer.eos_token_id
             )
 
         # Decode and strip the prompt from the output by slicing token IDs

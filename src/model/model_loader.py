@@ -3,13 +3,13 @@ import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from peft import prepare_model_for_kbit_training, LoraConfig, get_peft_model
 
-def load_gemma_model(model_id="google/gemma-2b"):
+def load_gemma_model(model_id="google/gemma-2b-it"):
     """
     Loads the model in 4-bit quantization.
 
     Args:
         model_id (str): The Hugging Face model ID.
-                        Default is "google/gemma-2b".
+                        Default is "google/gemma-2b-it".
                         
     Environment Variables:
         HF_TOKEN: Your Hugging Face authentication token (required for gated models like Gemma)
