@@ -63,19 +63,34 @@ class InferencePipeline:
         
         # If function_name is provided and exists in graph, use it
         if function_name:
+            # Check for direct match
             if function_name in self.repo_graph.graph:
                 print(f"Summarizing function '{function_name}' from graph...")
                 node_data = self.repo_graph.graph.nodes[function_name]
                 code = node_data.get("code", code) # Use graph code if available
                 repo_context = self.repo_graph.get_context_text(function_name)
                 target_meta = node_data.get("metadata", {})
-            elif not code:
-                # function_name provided but not found, and no code provided
-                raise ValueError(f"Function '{function_name}' not found in the repository graph.")
+
+            # Check for partial matches (e.g. user entered "UserService" but graph has "UserService.method")
             else:
-                 # function_name provided but not in graph, but code IS provided.
-                 # Treat as transient code, maybe ignore function_name or use it as label.
-                 print(f"Warning: Function '{function_name}' not found in graph. Analyzing provided code snippet.")
+                matches = [n for n in self.repo_graph.graph.nodes if function_name in n or n.endswith(f".{function_name}")]
+
+                if not matches and not code:
+                    # function_name provided but not found, and no code provided
+                    # List first 10 nodes to help user debug
+                    available = list(self.repo_graph.graph.nodes())[:10]
+                    msg = f"Function '{function_name}' not found in the repository graph.\nAvailable nodes (subset): {available}"
+                    raise ValueError(msg)
+                elif matches and not code:
+                     # User might have meant a class or partial name.
+                     # For now, just pick the first one or warn?
+                     # Let's fail but with a helpful message about candidates
+                     msg = f"Function '{function_name}' not found, but similar nodes exist: {matches[:5]}. Please be specific."
+                     raise ValueError(msg)
+                else:
+                     # function_name provided but not in graph, but code IS provided.
+                     # Treat as transient code, maybe ignore function_name or use it as label.
+                     print(f"Warning: Function '{function_name}' not found in graph. Analyzing provided code snippet.")
 
         if code:
              # Analyze transient code
