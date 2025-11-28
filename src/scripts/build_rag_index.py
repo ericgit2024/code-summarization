@@ -22,9 +22,10 @@ def build_index(
 
     # Extract codes and summaries from the dataset
     codes = [example['code'] for example in dataset]
-    summaries = [example['summary'] for example in dataset]
+    # Wrap summaries in a dictionary as expected by RAGSystem.build_index metadata_list
+    metadata_list = [{"docstring": example['summary']} for example in dataset]
 
-    rag_system.build_index(codes, summaries)
+    rag_system.build_index(codes, metadata_list)
 
     print(f"Saving RAG index to {output_path}...")
     with open(output_path, "wb") as f:
