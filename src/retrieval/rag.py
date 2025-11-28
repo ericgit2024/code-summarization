@@ -22,6 +22,27 @@ class RAGSystem:
         self.stored_codes = []
         self.stored_metadata = [] # Renamed from docstrings to metadata to store more info
 
+    def __setstate__(self, state):
+        """
+        Handle legacy pickle files that might not have stored_metadata or have old attribute names.
+        """
+        self.__dict__.update(state)
+        # Check if stored_metadata is missing
+        if not hasattr(self, 'stored_metadata'):
+            # Try to restore from old attributes if they exist
+            if hasattr(self, 'docstrings'):
+                logger.info("Migrating legacy 'docstrings' attribute to 'stored_metadata'")
+                # Convert list of strings to list of dicts
+                self.stored_metadata = [{'docstring': d} for d in self.docstrings]
+                # Optional: delete old attribute if you want to clean up
+                # del self.docstrings
+            elif hasattr(self, 'stored_docstrings'):
+                logger.info("Migrating legacy 'stored_docstrings' attribute to 'stored_metadata'")
+                self.stored_metadata = [{'docstring': d} for d in self.stored_docstrings]
+            else:
+                logger.warning("No metadata found in legacy pickle. Initializing empty metadata.")
+                self.stored_metadata = [{} for _ in self.stored_codes] if hasattr(self, 'stored_codes') else []
+
     def encode_codes(self, code_list, metadata_list=None):
         """
         Encodes code snippets.
@@ -67,8 +88,16 @@ class RAGSystem:
         query_embedding = self.encode_codes([query_code])[0]
         distances, indices = self.index.search(np.array([query_embedding]), fetch_k)
 
-        candidates_indices = indices[0].tolist()
-        candidates_distances = distances[0].tolist()
+        # Check if indices is a numpy array or list (depends on FAISS version and mocking)
+        if isinstance(indices, np.ndarray):
+            candidates_indices = indices[0].tolist()
+        else:
+            candidates_indices = indices[0]
+
+        if isinstance(distances, np.ndarray):
+            candidates_distances = distances[0].tolist()
+        else:
+            candidates_distances = distances[0]
 
         # Simple diversity reranking: avoid very similar results
         # We can check similarity between candidates.
@@ -83,7 +112,16 @@ class RAGSystem:
         for idx, dist in zip(candidates_indices, candidates_distances):
             if idx == -1: continue
 
+            # Handle case where index might be out of bounds (should not happen if consistent)
+            if idx >= len(self.stored_metadata):
+                logger.warning(f"Retrieved index {idx} is out of bounds for stored_metadata (len={len(self.stored_metadata)}). Skipping.")
+                continue
+
             meta = self.stored_metadata[idx]
+            # Ensure meta is a dict (handle legacy string data if migration failed or mixed)
+            if isinstance(meta, str):
+                 meta = {'docstring': meta}
+
             name = meta.get("name", "unknown")
 
             # Diversity check: don't select same function name multiple times
@@ -97,7 +135,14 @@ class RAGSystem:
                 break
 
         retrieved_codes = [self.stored_codes[i] for i in selected_indices]
-        retrieved_metadata = [self.stored_metadata[i] for i in selected_indices]
+        # Normalize metadata to dicts in output as well
+        retrieved_metadata = []
+        for i in selected_indices:
+             m = self.stored_metadata[i]
+             if isinstance(m, str):
+                 m = {'docstring': m}
+             retrieved_metadata.append(m)
+
         # Distances for selected
         # We need to map back to distances... let's just return a placeholder or recalculate if needed.
         # For now, just return selected items.

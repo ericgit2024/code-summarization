@@ -62,13 +62,22 @@ class InferencePipeline:
         target_meta = {}
         
         # If function_name is provided and exists in graph, use it
-        if function_name and function_name in self.repo_graph.graph:
-            print(f"Summarizing function '{function_name}' from graph...")
-            node_data = self.repo_graph.graph.nodes[function_name]
-            code = node_data.get("code", code) # Use graph code if available
-            repo_context = self.repo_graph.get_context_text(function_name)
-            target_meta = node_data.get("metadata", {})
-        elif code:
+        if function_name:
+            if function_name in self.repo_graph.graph:
+                print(f"Summarizing function '{function_name}' from graph...")
+                node_data = self.repo_graph.graph.nodes[function_name]
+                code = node_data.get("code", code) # Use graph code if available
+                repo_context = self.repo_graph.get_context_text(function_name)
+                target_meta = node_data.get("metadata", {})
+            elif not code:
+                # function_name provided but not found, and no code provided
+                raise ValueError(f"Function '{function_name}' not found in the repository graph.")
+            else:
+                 # function_name provided but not in graph, but code IS provided.
+                 # Treat as transient code, maybe ignore function_name or use it as label.
+                 print(f"Warning: Function '{function_name}' not found in graph. Analyzing provided code snippet.")
+
+        if code:
              # Analyze transient code
              try:
                  analyzer = ASTAnalyzer(code)
