@@ -9,8 +9,8 @@ import os
 
 def train(
     output_dir="gemma_lora_finetuned",
-    num_train_epochs=1, # Keeping it low for demonstration
-    per_device_train_batch_size=2, # Low batch size for memory constrained environments
+    num_train_epochs=5, # Increased epochs for better learning
+    per_device_train_batch_size=2,
     learning_rate=2e-4,
     index_path="rag_index.pkl"
 ):
@@ -33,8 +33,8 @@ def train(
     # 3. Prepare dataset
     print("Loading and preparing dataset...")
     dataset = load_and_process_dataset(split="train")
-    # Use a subset for quicker training demonstration
-    dataset = dataset.select(range(1000))
+    # Removed the subset restriction to train on the full (albeit small but high quality) dataset
+    # dataset = dataset.select(range(1000))
 
     def format_prompt(example):
         structural_prompt = construct_structural_prompt(example['code'])
@@ -63,7 +63,7 @@ def train(
 
     # Tokenize
     def tokenize_function(examples):
-        return tokenizer(examples["text"], padding="max_length", truncation=True, max_length=512)
+        return tokenizer(examples["text"], padding="max_length", truncation=True, max_length=1024)
 
     tokenized_dataset = train_dataset.map(tokenize_function, batched=True)
 
@@ -73,12 +73,13 @@ def train(
         per_device_train_batch_size=per_device_train_batch_size,
         gradient_accumulation_steps=4,
         warmup_steps=2,
-        max_steps=10, # Short training for demo
+        # max_steps=10, # Removed max_steps to allow full epoch training
+        num_train_epochs=num_train_epochs,
         learning_rate=learning_rate,
         fp16=True,
         logging_steps=1,
         optim="paged_adamw_8bit",
-        save_strategy="no", # Don't save checkpoints to save space
+        save_strategy="epoch",
     )
 
     # 5. Trainer
