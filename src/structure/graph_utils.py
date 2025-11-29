@@ -30,6 +30,14 @@ def get_defs_uses(node):
     visitor.visit(node)
     return visitor.defs, visitor.uses
 
+def node_to_code(node):
+    if isinstance(node, ast.AST):
+        try:
+            return ast.unparse(node).strip()
+        except Exception:
+            return ast.dump(node)
+    return str(node).strip()
+
 def compute_control_dependencies(cfg_graph, entry_node):
     """
     Computes control dependencies using post-dominance frontiers.
@@ -139,7 +147,7 @@ def visualize_cfg(code):
 
         for block in all_blocks:
             label = f"Block {block.id}\\n"
-            statements = [str(s).strip() for s in block.statements]
+            statements = [node_to_code(s) for s in block.statements]
             if len(statements) > 5:
                 label += "\\n".join(statements[:5]) + "\\n..."
             else:
@@ -172,7 +180,7 @@ def get_cfg(code):
         for block in all_blocks:
             cfg_text.append(f"Block {block.id}:")
             for statement in block.statements:
-                cfg_text.append(f"  {statement}")
+                cfg_text.append(f"  {node_to_code(statement)}")
 
             if block.exits:
                 exits = ", ".join([str(e.target.id) for e in block.exits])
@@ -228,7 +236,7 @@ def get_pdg(code):
             for block in blocks:
                 pdg_output.append(f"  Node {block.id}:")
                 for stmt in block.statements:
-                    pdg_output.append(f"    {str(stmt).strip()}")
+                    pdg_output.append(f"    {node_to_code(stmt)}")
                 
                 deps = node_dependencies[block.id]
                 if deps['control']:
