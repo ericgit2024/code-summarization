@@ -31,7 +31,7 @@ class InferencePipeline:
         self.tokenizer.pad_token = self.tokenizer.eos_token
 
         # Load LoRA adapter if exists, else use base model
-        if os.path.exists(model_dir):
+        if model_dir and os.path.exists(model_dir):
             print(f"Loading LoRA adapter from {model_dir}...")
             # Mocking PeftModel for tests if needed, or just skip if using mock loader
             try:
