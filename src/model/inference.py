@@ -4,9 +4,10 @@ from src.structure.repo_graph import RepoGraphBuilder
 from src.retrieval.rag import RAGSystem
 # from src.model.model_loader import load_gemma_model, setup_lora
 try:
-    from src.model.model_loader_mock import load_gemma_model, setup_lora
-except ImportError:
     from src.model.model_loader import load_gemma_model, setup_lora
+except ImportError:
+    print("WARNING: Failed to load real model loader. Using mock loader.")
+    from src.model.model_loader_mock import load_gemma_model, setup_lora
 
 from peft import PeftModel
 import pickle
