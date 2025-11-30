@@ -14,6 +14,7 @@ import os
 import torch
 from src.structure.ast_analyzer import ASTAnalyzer
 from unittest.mock import MagicMock
+from src.model.reflective_agent import ReflectiveAgent
 
 class InferencePipeline:
     def __init__(self, model_dir="gemma_lora_finetuned", index_path="rag_index.pkl", repo_path=None):
@@ -47,6 +48,9 @@ class InferencePipeline:
         self.repo_graph = RepoGraphBuilder()
         if repo_path:
             self.build_repo_graph(repo_path)
+
+        # Initialize Reflective Agent
+        self.agent = ReflectiveAgent(self)
 
     def build_repo_graph(self, path):
         """Builds the repository graph from a directory or file."""
@@ -105,6 +109,41 @@ class InferencePipeline:
         else:
             raise ValueError("Either 'code' or 'function_name' must be provided.")
 
+        return self.generate_from_code(code, target_meta, repo_context, instruction)
+
+    def summarize_with_agent(self, code=None, function_name=None):
+        """
+        Uses the ReflectiveAgent (LangGraph) to generate a summary.
+        """
+        repo_context = None
+        target_meta = {}
+        
+        # Logic to resolve function_name/code similar to summarize()
+        # For POC, let's reuse the resolution logic or assume function_name is valid if provided.
+        # Ideally we should extract the resolution logic.
+        
+        if function_name and function_name in self.repo_graph.graph:
+            node_data = self.repo_graph.graph.nodes[function_name]
+            code = node_data.get("code", code)
+            repo_context = self.repo_graph.get_context_text(function_name)
+            target_meta = node_data.get("metadata", {})
+        elif code:
+             try:
+                 analyzer = ASTAnalyzer(code)
+                 res = analyzer.analyze()
+                 if res["functions"]:
+                     target_meta = list(res["functions"].values())[0]
+             except:
+                 pass
+        else:
+             raise ValueError("Function not found or no code provided.")
+
+        return self.agent.run(function_name or "unknown", code, repo_context, target_meta)
+
+    def generate_from_code(self, code, metadata, repo_context, instruction):
+        """
+        Core generation logic, separated for reuse by Agent.
+        """
         # 1. Retrieve Context
         retrieved_items = []
         if self.rag_system:
@@ -118,17 +157,13 @@ class InferencePipeline:
         # 2. Construct Hierarchical Prompt
         full_prompt = self.construct_hierarchical_prompt(
             code,
-            target_meta,
+            metadata,
             repo_context,
             retrieved_items,
             instruction
         )
 
-        # print("DEBUG PROMPT:\n", full_prompt)
-
         # 3. Generate
-        # Increase max_length to avoid truncating the prompt too early
-        # Gemma has an 8k context window, so 4096 is safe(r)
         max_input_length = 6000
 
         # Handle mock tokenizer
@@ -137,14 +172,10 @@ class InferencePipeline:
             input_len = inputs.input_ids.shape[1]
         else:
              # Mock input
-             # The generate method on MagicMock expects **kwargs, so we need to ensure keys are passed correctly in generate() call
              inputs_dict = {"input_ids": torch.tensor([[1, 2, 3]])}
              inputs = MagicMock()
              inputs.input_ids = inputs_dict["input_ids"]
              inputs.to.return_value = inputs
-             # We can't simply pass **inputs because MagicMock doesn't behave like a dict for unpacking in arguments unless configured.
-             # So we'll use the dict explicitly.
-
              input_len = 3
         
         print(f"Input Token Length: {input_len}")
@@ -172,7 +203,6 @@ class InferencePipeline:
                 )
 
         # Decode and strip the prompt from the output by slicing token IDs
-        # Calculate the length of the input tokens to slice the output
         generated_tokens = outputs[0][input_len:]
         summary = self.tokenizer.decode(generated_tokens, skip_special_tokens=True).strip()
 

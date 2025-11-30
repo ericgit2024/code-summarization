@@ -48,11 +48,17 @@ if mode == "Upload Repo Dump":
         
         target_func = st.text_input("Target Function Name", placeholder="e.g., main")
         
+        use_smart_agent = st.checkbox("Use Smart Agent (LangGraph)", value=False, help="Enable iterative refinement using LangGraph.")
+
         if st.button("Generate Summary"):
             if target_func:
                 try:
                     with st.spinner(f"Generating summary for '{target_func}'..."):
-                        summary = pipeline.summarize(function_name=target_func)
+                        if use_smart_agent:
+                            summary = pipeline.summarize_with_agent(function_name=target_func)
+                            st.success("Smart Summary Generated!")
+                        else:
+                            summary = pipeline.summarize(function_name=target_func)
                         
                         st.subheader("Generated Summary")
                         st.write(summary)
