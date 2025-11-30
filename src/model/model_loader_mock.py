@@ -15,6 +15,11 @@ def load_gemma_model():
     # The inference pipeline expects outputs[0][input_len:]
     # So we need to return a tensor-like object
     
+    # Fix for PEFT warning: "Already found a peft_config attribute"
+    # MagicMock creates attributes on access, so peft_config exists by default.
+    # We must explicitly set it to None.
+    model.peft_config = None
+    
     return model, tokenizer
 
 def setup_lora(model, model_dir):
