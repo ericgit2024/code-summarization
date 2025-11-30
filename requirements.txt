@@ -12,7 +12,5 @@ evaluate
 rouge_score
 nltk
 py2cfg
-graphviz
-
 langgraph
 langchain

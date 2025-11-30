@@ -9,6 +9,11 @@ except ImportError:
     print("WARNING: Failed to load real model loader. Using mock loader.")
     from src.model.model_loader_mock import load_gemma_model, setup_lora
 
+try:
+    from src.model.codet5_loader import load_codet5_model
+except ImportError:
+    print("WARNING: Failed to load CodeT5 loader.")
+
 from peft import PeftModel
 import pickle
 import os
@@ -18,28 +23,39 @@ from unittest.mock import MagicMock
 from src.model.reflective_agent import ReflectiveAgent
 
 class InferencePipeline:
-    def __init__(self, model_dir="gemma_lora_finetuned", index_path="rag_index.pkl", repo_path=None):
-        print("Loading model and tokenizer...")
-        # Load base model
-        try:
-            self.model, self.tokenizer = load_gemma_model()
-        except Exception as e:
-            print(f"WARNING: Failed to load real model: {e}. Using mock loader.")
-            from src.model.model_loader_mock import load_gemma_model as mock_loader
-            self.model, self.tokenizer = mock_loader()
+    def __init__(self, model_dir="gemma_lora_finetuned", model_type="gemma", index_path="rag_index.pkl", repo_path=None):
+        print(f"Loading model ({model_type}) and tokenizer...")
+        self.model_type = model_type
 
-        self.tokenizer.pad_token = self.tokenizer.eos_token
-
-        # Load LoRA adapter if exists, else use base model
-        if os.path.exists(model_dir):
-            print(f"Loading LoRA adapter from {model_dir}...")
-            # Mocking PeftModel for tests if needed, or just skip if using mock loader
+        if model_type == "codet5":
             try:
-                self.model = PeftModel.from_pretrained(self.model, model_dir)
-            except:
-                pass
+                self.model, self.tokenizer = load_codet5_model()
+            except Exception as e:
+                print(f"WARNING: Failed to load CodeT5: {e}. Using mock loader.")
+                from src.model.model_loader_mock import load_gemma_model as mock_loader
+                self.model, self.tokenizer = mock_loader()
         else:
-            print("LoRA adapter not found. Using base model.")
+            # Load base model (Gemma)
+            try:
+                self.model, self.tokenizer = load_gemma_model()
+            except Exception as e:
+                print(f"WARNING: Failed to load real model: {e}. Using mock loader.")
+                from src.model.model_loader_mock import load_gemma_model as mock_loader
+                self.model, self.tokenizer = mock_loader()
+
+            self.tokenizer.pad_token = self.tokenizer.eos_token
+
+            # Load LoRA adapter if exists, else use base model
+            if model_dir and os.path.exists(model_dir):
+                print(f"Loading LoRA adapter from {model_dir}...")
+                # Mocking PeftModel for tests if needed, or just skip if using mock loader
+                try:
+                    self.model = PeftModel.from_pretrained(self.model, model_dir)
+                except:
+                    pass
+            else:
+                if model_type == "gemma":
+                    print("LoRA adapter not found. Using base model.")
 
         if hasattr(self.model, "eval"):
             self.model.eval()
@@ -195,18 +211,31 @@ class InferencePipeline:
             print("WARNING: Prompt was truncated! This may lead to poor results.")
 
         with torch.no_grad():
-            outputs = self.model.generate(
-                **inputs,
-                max_new_tokens=256,
-                do_sample=True,
-                temperature=0.1,
-                repetition_penalty=1.3,
-                pad_token_id=self.tokenizer.eos_token_id
-            )
-
-        # Decode and strip the prompt from the output by slicing token IDs
-        generated_tokens = outputs[0][input_len:]
-        summary = self.tokenizer.decode(generated_tokens, skip_special_tokens=True).strip()
+            if self.model_type == "codet5":
+                # Seq2Seq generation
+                outputs = self.model.generate(
+                    **inputs,
+                    max_new_tokens=256,
+                    do_sample=True,
+                    temperature=0.1,
+                    # CodeT5 doesn't need repetition_penalty as high usually, but keeping consistent
+                    repetition_penalty=1.3,
+                )
+                # Decode the entire output sequence (Seq2Seq doesn't echo input)
+                summary = self.tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
+            else:
+                # CausalLM generation (Gemma)
+                outputs = self.model.generate(
+                    **inputs,
+                    max_new_tokens=256,
+                    do_sample=True,
+                    temperature=0.1,
+                    repetition_penalty=1.3,
+                    pad_token_id=self.tokenizer.eos_token_id
+                )
+                # Decode and strip the prompt from the output by slicing token IDs
+                generated_tokens = outputs[0][input_len:]
+                summary = self.tokenizer.decode(generated_tokens, skip_special_tokens=True).strip()
 
         return summary
 
