@@ -68,7 +68,15 @@ class InferencePipeline:
         else:
             print(f"Invalid path for repo graph: {path}")
 
-    def summarize(self, code=None, function_name=None, instruction="Summarize the code, focusing on its logic and dependencies."):
+    def summarize(self, code=None, function_name=None, instruction=None):
+        if instruction is None:
+             instruction = (
+                 "Summarize the code's logic in plain English. "
+                 "Crucially, integrate the 'Dependency Context' into the summary narrative. "
+                 "Explain how the target function interacts with its dependencies (e.g., 'It validates credentials using `authenticate`...') "
+                 "rather than listing them separately. Produce a single, cohesive paragraph."
+             )
+
         repo_context = None
         target_meta = {}
         
@@ -197,10 +205,10 @@ class InferencePipeline:
         with torch.no_grad():
             outputs = self.model.generate(
                 **inputs,
-                max_new_tokens=256,
+                max_new_tokens=512,
                 do_sample=True,
-                temperature=0.1,
-                repetition_penalty=1.3,
+                temperature=0.2,
+                repetition_penalty=1.2,
                 pad_token_id=self.tokenizer.eos_token_id
             )
 
