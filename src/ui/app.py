@@ -80,10 +80,10 @@ if mode == "Upload Repo Dump":
                         st.subheader("Generated Summary")
                         st.write(summary)
                         
-                        # Show Context
-                        st.subheader("Repository Context")
+                        # Show Context (Collapsed)
                         context = pipeline.repo_graph.get_context_text(target_func)
-                        st.text(context)
+                        with st.expander("Debug: View Repository Context"):
+                            st.text(context)
                         
                         # Show Code
                         st.subheader("Function Code")
