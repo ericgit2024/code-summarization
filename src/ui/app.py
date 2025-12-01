@@ -7,6 +7,7 @@ import tempfile
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from src.model.inference import InferencePipeline
 from src.structure.graph_utils import visualize_cfg
+from src.ui.visualization import visualize_repo_graph
 
 st.set_page_config(page_title="SP-RAG Code Summarizer", layout="wide")
 
@@ -46,6 +47,22 @@ if mode == "Upload Repo Dump":
             pipeline.build_repo_graph(tmp_file_path)
         st.success("Graph built successfully!")
         
+        # Visualize Repo Graph Section
+        with st.expander("Visualize Repository Structure", expanded=False):
+            st.markdown("Visualize the interactions between functions in the repository.")
+
+            node_count = len(pipeline.repo_graph.graph.nodes)
+            st.caption(f"Total Nodes in Graph: {node_count}")
+
+            max_nodes = st.slider("Max Nodes to Display", min_value=10, max_value=200, value=50, step=10, help="Limit the number of nodes to avoid clutter.")
+
+            if st.button("Render Graph"):
+                if node_count > 0:
+                    dot = visualize_repo_graph(pipeline.repo_graph.graph, max_nodes=max_nodes)
+                    st.graphviz_chart(dot)
+                else:
+                    st.warning("Graph is empty.")
+
         target_func = st.text_input("Target Function Name", placeholder="e.g., main")
         
         use_smart_agent = st.checkbox("Use Smart Agent (LangGraph)", value=False, help="Enable iterative refinement using LangGraph.")

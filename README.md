@@ -1,79 +1,87 @@
-# SP-RAG: Structurally-Aware Code Summarization
+# NeuroGraph-CodeRAG: Graph-Augmented Agentic Code Summarization
 
 ## Overview
 
-SP-RAG (Structural Prompting with Retrieval-Augmented Generation) is a research project designed to generate high-quality, context-aware summaries of source code. Traditional code summarization models often struggle to capture the nuances of code's structural properties, leading to summaries that are either too generic or semantically disconnected from the code's actual execution flow.
+**NeuroGraph-CodeRAG** (formerly SP-RAG) is a state-of-the-art code summarization system that fuses **Static Analysis**, **Graph Theory**, and **Generative AI**. Unlike traditional models that treat code as flat text, NeuroGraph-CodeRAG constructs a multi-layered understanding of the codebase by extracting and combining four distinct graph structures: **Abstract Syntax Trees (AST)**, **Control Flow Graphs (CFG)**, **Program Dependence Graphs (PDG)**, and **Inter-procedural Call Graphs**.
 
-This project introduces a novel approach that integrates **Structural Prompting**—using Abstract Syntax Trees (ASTs), Control Flow Graphs (CFGs), and Program Dependence Graphs (PDGs)—with a **Retrieval-Augmented Generation (RAG)** pipeline. By doing so, SP-RAG provides the language model with a richer, more holistic understanding of the code, resulting in summaries that are not only fluent but also structurally and semantically precise.
+The system features an advanced **Reflective Agent** powered by **LangGraph**, which iteratively critiques and refines its own summaries by autonomously consulting the repository graph for missing context (e.g., unexplained function calls).
 
-## Research Perspective
+## Key Features
 
-From a research standpoint, SP-RAG explores the intersection of several key areas in software engineering and natural language processing:
+1.  **Multi-View Structural Prompting:** Integrates AST (syntax), CFG (execution flow), PDG (data dependencies), and Call Graphs (inter-procedural context) into a single, comprehensive prompt.
+2.  **Repo-Wide Context Awareness:** Builds a graph of the entire repository to resolve cross-file dependencies. It understands that a function calling `save_user()` depends on the database module, even if that code isn't in the current file.
+3.  **Reflective Agent (LangGraph):** An agentic workflow that:
+    *   **Generates** an initial summary.
+    *   **Critiques** it for missing details or hallucinations.
+    *   **Consults** the repository graph to fetch definitions of unknown functions.
+    *   **Refines** the summary based on new evidence.
+4.  **Retrieval-Augmented Generation (RAG):** Retrieves similar code examples from a vector database (FAISS) to guide the model via few-shot learning.
 
-1.  **Code as a Modality:** We treat source code not as plain text, but as a structured modality. By extracting and linearizing structural information (ASTs, CFGs, PDGs, Call Graphs), we aim to create a more effective representation for large language models.
-2.  **Structural Prompting:** This project investigates the efficacy of injecting explicit structural information into prompts. The hypothesis is that by providing the model with a "blueprint" of the code's architecture and logic, it can generate more accurate and faithful summaries.
-3.  **Inter-procedural Analysis:** The system implements a name-based resolution strategy to build a call graph of the repository. This allows the model to generate summaries that consider the interactions and dependencies between different functions, moving beyond isolated function-level analysis.
-4.  **Retrieval-Augmented Generation for Code:** SP-RAG utilizes a vector database (FAISS) with `sentence-transformers` to retrieve relevant code snippets. These retrieved examples serve as few-shot exemplars in the prompt, providing the model with similar code contexts to guide generation.
-5.  **Efficient Fine-Tuning:** The project leverages **QLoRA** (Quantized Low-Rank Adaptation) to efficiently fine-tune the **Gemma-2b** model. This approach enables training on consumer-grade hardware (4-bit quantization) while maintaining high performance.
-6.  **Evaluation Metrics:** The system includes a robust evaluation pipeline supporting standard n-gram and embedding-based metrics: **BLEU**, **ROUGE**, and **METEOR**.
+## How the Graphs Work Together
 
-## How It Works
+The system combines four graph representations, prioritizing them based on their utility for summarization:
 
-The SP-RAG pipeline consists of the following stages:
+1.  **Instruction & Metadata (AST):** The prompt starts with high-level metadata derived from the **AST** (function signature, parameters, cyclomatic complexity). This sets the stage.
+2.  **Dependency Context (Call Graph):** The **Call Graph** is the most critical for context. The system injects a textual description of *relevant* dependencies (callees), explaining what they do (based on their docstrings) and why they are relevant (relevance scoring).
+3.  **Logic & Flow (CFG/PDG):** While not always dumped as raw text, the **CFG** drives the complexity analysis (identifying loops/branches) and is visualized in the UI to help the user understand the code's "shape".
+4.  **Source Code:** Finally, the raw source code provides the minute details.
 
-1.  **Structural Feature Extraction:** Given a piece of code, we extract its AST, CFG, and PDG. For repositories, we build a dependency graph to capture inter-procedural relationships.
-2.  **Structural Prompt Construction:** The extracted features are serialized into a textual format (e.g., linearizing the AST and CFG nodes) and integrated into a "structural prompt."
-3.  **Retrieval-Augmented Generation:** The input code is embedded and used to query a FAISS vector index containing a database of code-summary pairs. Top-k similar examples are retrieved and added to the prompt context.
-4.  **Code Summarization:** The final prompt—combining the structural blueprint, retrieved exemplars, and the target code—is fed to the fine-tuned Gemma model to generate the summary.
+**Prompt Structure:** `Instruction > AST Metadata > Call Graph Context > RAG Examples > Source Code`
 
-## Project Structure
+## Usage Guide
 
--   `src/model`: Contains model loading (Gemma + LoRA), training logic, and evaluation scripts.
--   `src/structure`: Implements AST parsing, CFG generation (`py2cfg`), and PDG extraction (Control/Data dependencies).
--   `src/retrieval`: Implements the RAG system using FAISS and SentenceTransformers.
--   `src/utils`: Contains repository analysis tools for dependency graph construction.
--   `src/ui`: A Streamlit-based user interface for interacting with the system.
--   `src/data`: Handles dataset loading (custom JSONL format) and preprocessing.
+### 1. Prerequisites
+*   Python 3.8+
+*   Git
+*   Graphviz (`sudo apt-get install graphviz` or `brew install graphviz`)
+*   Hugging Face Account & Token (for Gemma model)
 
-## Usage
-
-### Installation
-
-1.  Clone the repository.
-2.  Install dependencies:
-    ```bash
-    pip install -r requirements.txt
-    ```
-3.  Set up your Hugging Face token (required for Gemma):
-    ```bash
-    export HF_TOKEN='your_token_here'  # Linux/Mac
-    $env:HF_TOKEN='your_token_here'    # Windows PowerShell
-    ```
-
-### Running the UI
-
-To use the SP-RAG system, you can run the Streamlit interface:
-
+### 2. Installation
 ```bash
-streamlit run src/ui/app.py
+git clone https://github.com/yourusername/NeuroGraph-CodeRAG.git
+cd NeuroGraph-CodeRAG
+pip install -r requirements.txt
 ```
 
-### From a GitHub Repository
+### 3. Setup Authentication
+Export your Hugging Face token:
+*   **Linux/Mac:** `export HF_TOKEN="your_token_here"`
+*   **Windows:** `$env:HF_TOKEN="your_token_here"`
 
-1.  Enter the URL of the GitHub repository.
-2.  Click "Analyze Repository." The UI will display the dependency graph and the inter-procedural call graph.
-3.  Select a Python file from the dropdown menu.
-4.  Enter the name of the function you want to summarize.
-5.  Click "Get Function Code."
-6.  Click "Generate Summary."
+### 4. Build the RAG Index
+Initialize the vector database of code examples:
+```bash
+python3 -m src.scripts.build_rag_index
+```
 
-### From a Code Snippet
+### 5. Running the Interface
+Launch the interactive web UI:
+```bash
+python3 -m streamlit run src/ui/app.py
+```
+*   **Analyze Repo Dump:** Upload a combined `.py` file containing your repository's code. The system will build the full graph.
+*   **Debug & Visualize:** Select a function to see its **Control Flow Graph (CFG)** visualized and its **Repository Context** (dependencies) listed.
+*   **Smart Agent:** Check "Use Smart Agent" to enable the self-correcting workflow.
 
-1.  Paste your code into the text area.
-2.  Click "Generate Summary."
+### 6. Training (Optional)
+To fine-tune the model on your own dataset:
+```bash
+python3 -m src.model.trainer
+```
 
-## Future Work
+## How the Reflective Agent Works
 
--   **Expanded Language Support:** The current system is primarily focused on Python. Future iterations will aim to support other programming languages.
--   **Evaluation on Larger Benchmarks:** The model will be evaluated on standard benchmarks (e.g., CodeSearchNet) to assess its performance against state-of-the-art methods.
--   **IDE Integration:** We envision SP-RAG as a tool that can be integrated directly into IDEs.
+The **Reflective Agent** follows a cognitive cycle implemented with **LangGraph**:
+1.  **Generate:** Produces a draft summary.
+2.  **Critique:** A separate LLM call evaluates the summary against the code. *Does it mention `connect_db` but fail to explain it?*
+3.  **Policy Check:** If the critique finds "missing dependencies," the agent decides to **Consult**.
+4.  **Consult:** The agent queries the **Repo Graph** for the missing function (`connect_db`), retrieves its docstring/signature, and adds it to the context.
+5.  **Refine:** The agent rewrites the summary with the new context.
+
+This mimics a human developer reading code, realizing they don't know a function, looking it up, and then writing a better explanation.
+
+## Project Structure
+*   `src/structure`: Graph algorithms (AST, CFG, Repo Graph).
+*   `src/model`: LLM inference, LoRA training, and the `ReflectiveAgent`.
+*   `src/ui`: Streamlit application.
+*   `src/retrieval`: RAG system implementation.
