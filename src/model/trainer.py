@@ -33,8 +33,11 @@ def train(
     # 3. Prepare dataset
     print("Loading and preparing dataset...")
     dataset = load_and_process_dataset(split="train")
-    # Use a subset for quicker training demonstration
-    dataset = dataset.select(range(1000))
+
+    # Split dataset into training and validation
+    dataset_split = dataset.train_test_split(test_size=0.1)
+    train_dataset = dataset_split["train"]
+    eval_dataset = dataset_split["test"]
 
     def format_prompt(example):
         structural_prompt = construct_structural_prompt(example['code'])
@@ -59,19 +62,22 @@ def train(
 
         return {"text": text}
 
-    train_dataset = dataset.map(format_prompt)
+    train_dataset = train_dataset.map(format_prompt)
+    eval_dataset = eval_dataset.map(format_prompt)
 
     # Tokenize
     def tokenize_function(examples):
         return tokenizer(examples["text"], padding="max_length", truncation=True, max_length=512)
 
-    tokenized_dataset = train_dataset.map(tokenize_function, batched=True)
+    tokenized_train_dataset = train_dataset.map(tokenize_function, batched=True)
+    tokenized_eval_dataset = eval_dataset.map(tokenize_function, batched=True)
 
     # 4. Training Arguments
     training_args = TrainingArguments(
         output_dir=output_dir,
-        per_device_train_batch_size=per_device_train_batch_size,
-        gradient_accumulation_steps=4,
+        per_device_train_batch_size=1, # Reduced to 1 to avoid OOM
+        per_device_eval_batch_size=1,  # Explicitly set low eval batch size
+        gradient_accumulation_steps=8, # Increased to maintain effective batch size
         warmup_steps=2,
         max_steps=10, # Short training for demo
         learning_rate=learning_rate,
@@ -79,12 +85,17 @@ def train(
         logging_steps=1,
         optim="paged_adamw_8bit",
         save_strategy="no", # Don't save checkpoints to save space
+        eval_strategy="steps",
+        eval_steps=5,
+        gradient_checkpointing=True,
+        gradient_checkpointing_kwargs={'use_reentrant': False}, # Fix for warning
     )
 
     # 5. Trainer
     trainer = Trainer(
         model=model,
-        train_dataset=tokenized_dataset,
+        train_dataset=tokenized_train_dataset,
+        eval_dataset=tokenized_eval_dataset,
         args=training_args,
         data_collator=DataCollatorForLanguageModeling(tokenizer, mlm=False),
     )
