@@ -1,0 +1,92 @@
+[
+  {
+    "code_snippet": "def _compute_sha3_512_hash(data):\n    import hashl...",
+    "generated": "Basic Summary: The function processes a transaction by connecting to a database and saving the record.",
+    "reference": "Generates a data checksum by first computing the full SHA3-512 hash of the **`input_data`** using **`_compute_sha3_512_hash`** (which relies on the **`hashlib`** library) and then truncating the result to the first 10 characters using **`_truncate_hash_for_checksum`**.",
+    "bleu": 0.0,
+    "rougeL": 0.13793103448275862,
+    "sas": 0.2,
+    "simulated_human_score": 2
+  },
+  {
+    "code_snippet": "def _extract_all_dates_iso8601(text):\n    import r...",
+    "generated": "Basic Summary: The function processes a transaction by connecting to a database and saving the record.",
+    "reference": "Finds and logs ISO 8601 dates by first extracting all strings matching a simple ISO 8601 date/datetime pattern using regex via **`_extract_all_dates_iso8601`** (which relies on the **`re`** library) and then logging the total count of matches found using **`_log_date_count`**.",
+    "bleu": 0.0,
+    "rougeL": 0.13114754098360656,
+    "sas": 0.2,
+    "simulated_human_score": 2
+  },
+  {
+    "code_snippet": "def _encode_url_component(value):\n    import urlli...",
+    "generated": "Basic Summary: The function processes a transaction by connecting to a database and saving the record.",
+    "reference": "Builds a URL path segment by first URL-encoding the **`raw_value`** using **`_encode_url_component`** (which relies on the **`urllib.parse`** library) and then combining it with the **`segment_key`** using **`_create_url_segment`**.",
+    "bleu": 0.0,
+    "rougeL": 0.1568627450980392,
+    "sas": 0.4,
+    "simulated_human_score": 3
+  },
+  {
+    "code_snippet": "def _send_metrics_to_datadog(metric_name, value):\n...",
+    "generated": "Basic Summary: The function processes a transaction by connecting to a database and saving the record.",
+    "reference": "Reports a metric by first sending the **`metric_value`** to a mock Datadog endpoint using **`_send_metrics_to_datadog`** and then checking if the reported **`metric_value`** was equal to zero using **`_check_if_metric_is_zero`**.",
+    "bleu": 0.0,
+    "rougeL": 0.22641509433962265,
+    "sas": 0.2,
+    "simulated_human_score": 2
+  },
+  {
+    "code_snippet": "def _generate_api_key_string(length=32):\n    impor...",
+    "generated": "Basic Summary: The function processes a transaction by connecting to a database and saving the record.",
+    "reference": "Generates a 32-character random API key string using **`_generate_api_key_string`** (relying on the **`secrets`** and **`string`** libraries) and then stores this key in a mock secure vault using **`_store_key_in_vault`**.",
+    "bleu": 0.0,
+    "rougeL": 0.0784313725490196,
+    "sas": 0.2,
+    "simulated_human_score": 2
+  },
+  {
+    "code_snippet": "def _get_api_response_body_size(response_dict):\n  ...",
+    "generated": "Basic Summary: The function processes a transaction by connecting to a database and saving the record.",
+    "reference": "Audits API response size by first calculating the size of the mock HTTP response body in bytes using **`_get_api_response_body_size`** and then checking if this size exceeds a large threshold (default 500KB) using **`_check_if_response_is_large`**.",
+    "bleu": 0.0,
+    "rougeL": 0.07017543859649124,
+    "sas": 0.2,
+    "simulated_human_score": 2
+  },
+  {
+    "code_snippet": "def _compute_cosine_angle(dot_product, magnitude_a...",
+    "generated": "Basic Summary: The function processes a transaction by connecting to a database and saving the record.",
+    "reference": "Analyzes two vectors for orthogonality by first calculating the cosine of the angle between them using their **`dot_p`** and **`mag_a`**/**`mag_b`** (magnitudes), and then checking if the resulting cosine is near zero. The process relies on **`_compute_cosine_angle`** and **`_check_if_vectors_are_orthogonal`**.",
+    "bleu": 0.0,
+    "rougeL": 0.125,
+    "sas": 0.2,
+    "simulated_human_score": 2
+  },
+  {
+    "code_snippet": "def _get_system_uptime_seconds():\n    import time\n...",
+    "generated": "Basic Summary: The function processes a transaction by connecting to a database and saving the record.",
+    "reference": "Retrieves the system uptime by first calculating the total uptime in seconds (current time - boot time) using **`_get_system_uptime_seconds`** (which relies on the **`time`** and external **`psutil`** libraries) and then converting that duration from seconds to days using **`_convert_seconds_to_days`**.",
+    "bleu": 0.0,
+    "rougeL": 0.09999999999999999,
+    "sas": 0.4,
+    "simulated_human_score": 3
+  },
+  {
+    "code_snippet": "def _format_datetime_to_rfc3339(dt_object):\n    # ...",
+    "generated": "Basic Summary: The function processes a transaction by connecting to a database and saving the record.",
+    "reference": "Generates an RFC 3339 timestamp by first retrieving the current UTC datetime object (without microseconds) using **`_get_current_utc_datetime`** (which relies on the **`datetime`** library) and then formatting that object into the RFC 3339 string format (ISO 8601 with trailing 'Z') using **`_format_datetime_to_rfc3339`**.",
+    "bleu": 0.0,
+    "rougeL": 0.09523809523809525,
+    "sas": 0.2,
+    "simulated_human_score": 2
+  },
+  {
+    "code_snippet": "def _compute_md5_hash_of_string(text):\n    import ...",
+    "generated": "Basic Summary: The function processes a transaction by connecting to a database and saving the record.",
+    "reference": "Compares two strings by first computing the MD5 hash of **`string1`** and **`string2`** using **`_compute_md5_hash_of_string`** (which relies on the **`hashlib`** library) and then checking if the two resulting hash values are equal using **`_compare_hashes`**.",
+    "bleu": 0.0,
+    "rougeL": 0.1090909090909091,
+    "sas": 0.4,
+    "simulated_human_score": 3
+  }
+]

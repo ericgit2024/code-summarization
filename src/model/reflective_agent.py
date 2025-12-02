@@ -60,7 +60,14 @@ class ReflectiveAgent:
     def generate_summary(self, state: AgentState):
         logger.info(f"Generating initial summary for {state['function_name']}...")
         
-        instruction = "Summarize the code in plain English, focusing on its logic and dependencies. Do NOT output the code itself."
+        # Use the detailed instruction consistent with the inference pipeline
+        instruction = (
+             "Provide a comprehensive and detailed explanation of the code's functionality. "
+             "Break down the logic step-by-step, explaining the purpose of inputs, the flow of operations, and the role of outputs. "
+             "Crucially, integrate the 'Dependency Context' into the narrative, detailing how the function interacts with external calls "
+             "(e.g., 'It validates credentials by calling `authenticate`, which checks the database...'). "
+             "Ensure the summary is thorough and covers all key aspects of the implementation."
+        )
         
         summary = self.pipeline.generate_from_code(
             code=state['code'],
