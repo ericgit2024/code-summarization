@@ -75,8 +75,9 @@ def train(
     # 4. Training Arguments
     training_args = TrainingArguments(
         output_dir=output_dir,
-        per_device_train_batch_size=per_device_train_batch_size,
-        gradient_accumulation_steps=4,
+        per_device_train_batch_size=1, # Reduced to 1 to avoid OOM
+        per_device_eval_batch_size=1,  # Explicitly set low eval batch size
+        gradient_accumulation_steps=8, # Increased to maintain effective batch size
         warmup_steps=2,
         max_steps=10, # Short training for demo
         learning_rate=learning_rate,
@@ -86,6 +87,8 @@ def train(
         save_strategy="no", # Don't save checkpoints to save space
         eval_strategy="steps",
         eval_steps=5,
+        gradient_checkpointing=True,
+        gradient_checkpointing_kwargs={'use_reentrant': False}, # Fix for warning
     )
 
     # 5. Trainer
