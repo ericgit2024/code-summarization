@@ -9,8 +9,9 @@ import os
 
 def train(
     output_dir="gemma_lora_finetuned",
-    num_train_epochs=1, # Keeping it low for demonstration
-    per_device_train_batch_size=2, # Low batch size for memory constrained environments
+    num_train_epochs=5, # Increased for better convergence
+    per_device_train_batch_size=1,
+    per_device_eval_batch_size=1,
     learning_rate=2e-4,
     index_path="rag_index.pkl"
 ):
@@ -45,14 +46,14 @@ def train(
         retrieved_codes = []
         retrieved_docstrings = []
         if rag_system:
-            retrieved_codes, retrieved_docstrings, _ = rag_system.retrieve(example['code'], k=1)
+            retrieved_codes, retrieved_docstrings, _ = rag_system.retrieve(example['code'], k=3)
 
         full_prompt = construct_prompt(
             structural_prompt,
             example['code'],
             retrieved_codes,
             retrieved_docstrings,
-            instruction="Provide a detailed, narrative summary of the following code. Focus on its purpose, internal logic, and dependencies. Do not include any code snippets in the summary."
+            instruction="Summarize the code's functionality concisely. Focus on the main purpose, key operations, and important dependencies. Avoid describing every line; instead, capture the high-level logic."
         )
 
         # Gemma chat format or simple completion?
@@ -73,22 +74,24 @@ def train(
     tokenized_eval_dataset = eval_dataset.map(tokenize_function, batched=True)
 
     # 4. Training Arguments
+    # Effective batch size = 1 * 8 = 8.
+    # Dataset size ~347 (90% of 386). Steps per epoch = 347/8 = 43.
+    # 5 epochs = ~215 steps.
     training_args = TrainingArguments(
         output_dir=output_dir,
-        per_device_train_batch_size=1, # Reduced to 1 to avoid OOM
-        per_device_eval_batch_size=1,  # Explicitly set low eval batch size
-        gradient_accumulation_steps=8, # Increased to maintain effective batch size
-        warmup_steps=2,
-        max_steps=10, # Short training for demo
+        per_device_train_batch_size=per_device_train_batch_size,
+        per_device_eval_batch_size=per_device_eval_batch_size,
+        gradient_accumulation_steps=8,
+        warmup_steps=20, # Increased warmup
+        num_train_epochs=num_train_epochs, # Use epochs instead of max_steps
         learning_rate=learning_rate,
         fp16=True,
-        logging_steps=1,
+        logging_steps=10,
         optim="paged_adamw_8bit",
-        save_strategy="no", # Don't save checkpoints to save space
-        eval_strategy="steps",
-        eval_steps=5,
+        save_strategy="epoch",
+        eval_strategy="epoch",
         gradient_checkpointing=True,
-        gradient_checkpointing_kwargs={'use_reentrant': False}, # Fix for warning
+        gradient_checkpointing_kwargs={'use_reentrant': False},
     )
 
     # 5. Trainer
