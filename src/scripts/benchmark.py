@@ -21,7 +21,8 @@ def run_benchmark(num_samples=20):
     print(f"Generating summaries for {num_samples} examples...")
     for example in tqdm(dataset):
         code = example['code']
-        reference = example['docstring']
+        # The dataset uses 'summary' as the key for the reference text
+        reference = example.get('docstring', example.get('summary', ''))
 
         # Generate summary
         summary = pipeline.summarize(code)
