@@ -1,0 +1,78 @@
+@startuml
+title NeuroGraph-CodeRAG Architecture
+
+skinparam componentStyle uml2
+skinparam packageStyle rectangle
+
+package "Presentation Layer" {
+    [Streamlit UI] as UI
+    note right of UI
+        Handles user input,
+        file uploads, and
+        visualizations.
+    end note
+}
+
+package "Application Logic" {
+    component "InferencePipeline" as Pipeline {
+        port "Generate" as GenPort
+    }
+
+    component "ReflectiveAgent" as Agent {
+        note bottom
+            LangGraph Workflow:
+            Generate -> Critique ->
+            Decide -> Consult -> Refine
+        end note
+    }
+}
+
+package "Structural Analysis" {
+    [RepoGraphBuilder] as GraphBuilder
+    [ASTAnalyzer] as Analyzer
+    [Graph Utils] as GraphUtils
+
+    artifact "Repository Graph\n(NetworkX)" as RepoGraph
+}
+
+package "Retrieval System" {
+    [RAGSystem] as RAG
+    database "FAISS Index" as FAISS
+    [SentenceTransformer] as Encoder
+}
+
+package "Model Infrastructure" {
+    [Model Loader] as Loader
+    component "LLM (Gemma-2b)" as LLM
+}
+
+package "Training & Data" {
+    [Trainer] as Trainer
+    [Dataset Loader] as DataLoader
+}
+
+' Relationships
+UI --> Pipeline : Requests Summary / Build Graph
+UI --> GraphUtils : Visualizes CFG
+UI --> GraphBuilder : Visualizes Repo Graph
+
+Pipeline --> Loader : Loads Model
+Pipeline --> LLM : Generates Text
+Pipeline --> GraphBuilder : Builds/Queries Graph
+Pipeline --> RAG : Retrieves Similar Code
+Pipeline <--> Agent : Orchestrates / Uses
+
+Agent --> GraphBuilder : Consults for Context
+
+GraphBuilder --> Analyzer : Parses Code
+GraphBuilder --> RepoGraph : Constructs
+Analyzer --> GraphUtils : Uses
+
+RAG --> Encoder : Encodes Code
+RAG --> FAISS : Search / Storage
+
+Trainer --> DataLoader : Loads Data
+Trainer --> LLM : Fine-tunes
+Trainer --> RAG : Augments Training Data
+
+@enduml

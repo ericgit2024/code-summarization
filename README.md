@@ -4,29 +4,21 @@
 
 **NeuroGraph-CodeRAG** (formerly SP-RAG) is a state-of-the-art code summarization system that fuses **Static Analysis**, **Graph Theory**, and **Generative AI**. Unlike traditional models that treat code as flat text, NeuroGraph-CodeRAG constructs a multi-layered understanding of the codebase by extracting and combining four distinct graph structures: **Abstract Syntax Trees (AST)**, **Control Flow Graphs (CFG)**, **Program Dependence Graphs (PDG)**, and **Inter-procedural Call Graphs**.
 
-The system features an advanced **Reflective Agent** powered by **LangGraph**, which iteratively critiques and refines its own summaries by autonomously consulting the repository graph for missing context (e.g., unexplained function calls).
+The system features an advanced **Reflective Agent** powered by **LangGraph**, which iteratively critiques and refines its own summaries by autonomously consulting the repository graph for missing context.
+
+For a deep dive into the system's architecture and features, see [FEATURES.md](./FEATURES.md).
+
+![Architecture Diagram](./architecture.puml)
+*Note: The architecture diagram is available in PlantUML format as `architecture.puml` in the repository root.*
 
 ## Key Features
 
-1.  **Multi-View Structural Prompting:** Integrates AST (syntax), CFG (execution flow), PDG (data dependencies), and Call Graphs (inter-procedural context) into a single, comprehensive prompt.
-2.  **Repo-Wide Context Awareness:** Builds a graph of the entire repository to resolve cross-file dependencies. It understands that a function calling `save_user()` depends on the database module, even if that code isn't in the current file.
-3.  **Reflective Agent (LangGraph):** An agentic workflow that:
-    *   **Generates** an initial summary.
-    *   **Critiques** it for missing details or hallucinations.
-    *   **Consults** the repository graph to fetch definitions of unknown functions.
-    *   **Refines** the summary based on new evidence.
-4.  **Retrieval-Augmented Generation (RAG):** Retrieves similar code examples from a vector database (FAISS) to guide the model via few-shot learning.
+1.  **Multi-View Structural Prompting:** Integrates AST, CFG, PDG, and Call Graphs into a single, comprehensive prompt.
+2.  **Repo-Wide Context Awareness:** Resolves cross-file dependencies to understand interactions across the entire codebase.
+3.  **Reflective Agent (LangGraph):** An agentic workflow that Generates, Critiques, Decides, Consults, and Refines to ensure accuracy and reduce hallucinations.
+4.  **Retrieval-Augmented Generation (RAG):** Retrieves similar code examples from a FAISS vector database to guide the model.
 
-## How the Graphs Work Together
-
-The system combines four graph representations, prioritizing them based on their utility for summarization:
-
-1.  **Instruction & Metadata (AST):** The prompt starts with high-level metadata derived from the **AST** (function signature, parameters, cyclomatic complexity). This sets the stage.
-2.  **Dependency Context (Call Graph):** The **Call Graph** is the most critical for context. The system injects a textual description of *relevant* dependencies (callees), explaining what they do (based on their docstrings) and why they are relevant (relevance scoring).
-3.  **Logic & Flow (CFG/PDG):** While not always dumped as raw text, the **CFG** drives the complexity analysis (identifying loops/branches) and is visualized in the UI to help the user understand the code's "shape".
-4.  **Source Code:** Finally, the raw source code provides the minute details.
-
-**Prompt Structure:** `Instruction > AST Metadata > Call Graph Context > RAG Examples > Source Code`
+[Read more about these features in FEATURES.md](./FEATURES.md)
 
 ## Usage Guide
 
@@ -73,12 +65,12 @@ python3 -m src.model.trainer
 
 The **Reflective Agent** follows a cognitive cycle implemented with **LangGraph**:
 1.  **Generate:** Produces a draft summary.
-2.  **Critique:** A separate LLM call evaluates the summary against the code. *Does it mention `connect_db` but fail to explain it?*
-3.  **Policy Check:** If the critique finds "missing dependencies," the agent decides to **Consult**.
-4.  **Consult:** The agent queries the **Repo Graph** for the missing function (`connect_db`), retrieves its docstring/signature, and adds it to the context.
+2.  **Critique:** A separate LLM call evaluates the summary against the code.
+3.  **Policy Check:** If missing dependencies are found, the agent decides to **Consult**.
+4.  **Consult:** The agent queries the **Repo Graph** for the missing function.
 5.  **Refine:** The agent rewrites the summary with the new context.
 
-This mimics a human developer reading code, realizing they don't know a function, looking it up, and then writing a better explanation.
+*For a detailed explanation of this loop, please refer to [FEATURES.md](./FEATURES.md).*
 
 ## Project Structure
 *   `src/structure`: Graph algorithms (AST, CFG, Repo Graph).
