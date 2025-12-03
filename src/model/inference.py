@@ -71,12 +71,12 @@ class InferencePipeline:
     def summarize(self, code=None, function_name=None, instruction=None):
         if instruction is None:
              instruction = (
-                 "Provide a comprehensive, detailed, paragraph-like explanation of the code's functionality. "
-                 "Avoid brief bullet points; instead, write a cohesive narrative that breaks down the logic step-by-step. "
-                 "Explain the purpose of inputs, the flow of operations, and the role of outputs in depth. "
-                 "Crucially, integrate the 'Dependency Context' into the narrative, detailing how the function interacts with external calls "
-                 "(e.g., 'It validates credentials by calling `authenticate`, which checks the database...'). "
-                 "Ensure the summary is thorough, covering all key aspects of the implementation with high granularity."
+                 "Provide a comprehensive and structured summary of the code's functionality.\n"
+                 "The output MUST be organized into the following sections using Markdown headers:\n"
+                 "1. **Overview**: A high-level explanation of what the code does.\n"
+                 "2. **Detailed Logic**: A step-by-step breakdown of the operations, inputs, and outputs.\n"
+                 "3. **Dependency Analysis**: An explanation of how the function interacts with external dependencies (e.g., other functions, classes, or APIs), utilizing the provided 'Dependency Context'.\n\n"
+                 "Ensure the content is detailed and thorough."
              )
 
         repo_context = None
