@@ -61,21 +61,3 @@ def calculate_structural_accuracy(code, generated_summary, reference_context=Non
         score += 0.5 * weights['control_flow']
 
     return score
-
-if __name__ == "__main__":
-    # Test block for immediate verification
-    dummy_code = """
-def process_data(data):
-    if not data:
-        return None
-    for item in data:
-        validate(item)
-    return True
-"""
-    dummy_summary = "The function iterates through the data and calls validate on each item."
-
-    print("Testing Structural Accuracy Score (SAS)...")
-    score = calculate_structural_accuracy(dummy_code, dummy_summary)
-    print(f"Code:\n{dummy_code}")
-    print(f"Summary: {dummy_summary}")
-    print(f"Calculated SAS: {score:.4f}")
