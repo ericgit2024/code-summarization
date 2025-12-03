@@ -62,11 +62,12 @@ class ReflectiveAgent:
         
         # Use the detailed instruction consistent with the inference pipeline
         instruction = (
-             "Provide a comprehensive and detailed explanation of the code's functionality. "
-             "Break down the logic step-by-step, explaining the purpose of inputs, the flow of operations, and the role of outputs. "
-             "Crucially, integrate the 'Dependency Context' into the narrative, detailing how the function interacts with external calls "
-             "(e.g., 'It validates credentials by calling `authenticate`, which checks the database...'). "
-             "Ensure the summary is thorough and covers all key aspects of the implementation."
+             "Provide a comprehensive and structured summary of the code's functionality.\n"
+             "The output MUST be organized into the following sections using Markdown headers:\n"
+             "1. **Overview**: A high-level explanation of what the code does.\n"
+             "2. **Detailed Logic**: A step-by-step breakdown of the operations, inputs, and outputs.\n"
+             "3. **Dependency Analysis**: An explanation of how the function interacts with external dependencies (e.g., other functions, classes, or APIs), utilizing the provided 'Dependency Context'.\n\n"
+             "Ensure the content is detailed and thorough."
         )
         
         summary = self.pipeline.generate_from_code(
@@ -91,9 +92,11 @@ class ReflectiveAgent:
             f"### Response Format\n"
             f"Return a JSON object with:\n"
             f"- \"score\": (1-10)\n"
-            f"- \"feedback\": \"concise critique\"\n"
-            f"- \"missing_deps\": [\"func1\", \"func2\"] (list of function names that need more explanation)\n"
-            f"Do NOT output markdown formatting like ```json."
+            f"- \"feedback\": \"concise critique string\"\n"
+            f"- \"missing_deps\": [\"func1\", \"func2\"] (list of function names that need more explanation)\n\n"
+            f"Example:\n"
+            f'{{"score": 8, "feedback": "Good summary but misses the db connection part.", "missing_deps": ["connect_db"]}}\n'
+            f"Do NOT output markdown formatting like ```json. JUST the JSON string."
         )
         
         response = self.pipeline.generate_response(prompt)
@@ -111,8 +114,9 @@ class ReflectiveAgent:
             missing = data.get("missing_deps", [])
             score = data.get("score", 5)
         except:
-            logger.warning(f"Failed to parse critique JSON: {response}")
-            critique = response
+            logger.warning(f"Failed to parse critique JSON. Response start: {response[:100]}...")
+            # Fallback: Don't use the garbage response as critique.
+            critique = "The summary is missing key details and needs to cover more dependencies."
             missing = []
             score = 5
             
@@ -133,10 +137,11 @@ class ReflectiveAgent:
         
         missing = [d for d in state['missing_deps'] if d not in state.get('consulted_functions', [])]
         
+        critique_text = state['critique'].lower()
         if missing:
             logger.info(f"Policy: Found missing dependencies {missing}. Action: CONSULT")
             return {"action": "consult"}
-        elif "missing" in state['critique'].lower() or "unclear" in state['critique'].lower():
+        elif "missing" in critique_text or "unclear" in critique_text or "needs to cover" in critique_text or "more detailed" in critique_text:
              logger.info("Policy: Critique indicates issues. Action: REFINE")
              return {"action": "refine"}
         else:
@@ -200,7 +205,11 @@ class ReflectiveAgent:
             f"### Updated Context\n{state['context']}\n\n"
             f"### Previous Summary\n{state['summary']}\n\n"
             f"### Refined Summary\n"
-            f"Write ONLY the new summary in plain English. Do NOT output code."
+            f"Provide a refined, structured summary. You MUST use the following sections:\n"
+            f"1. **Overview**\n"
+            f"2. **Detailed Logic**\n"
+            f"3. **Dependency Analysis**\n\n"
+            f"Ensure the critique points are addressed in the relevant sections. Do NOT output code."
         )
         
         summary = self.pipeline.generate_response(prompt)

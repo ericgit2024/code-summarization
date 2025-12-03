@@ -78,7 +78,10 @@ if mode == "Upload Repo Dump":
                             summary = pipeline.summarize(function_name=target_func)
                         
                         st.subheader("Generated Summary")
-                        st.write(summary)
+                        if summary:
+                            st.write(summary)
+                        else:
+                            st.warning("No summary was generated.")
                         
                         # Show Context (Collapsed)
                         context = pipeline.repo_graph.get_context_text(target_func)
