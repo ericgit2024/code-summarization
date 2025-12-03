@@ -53,7 +53,7 @@ def train(
             example['code'],
             retrieved_codes,
             retrieved_docstrings,
-            instruction="Summarize the code's functionality concisely. Focus on the main purpose, key operations, and important dependencies. Avoid describing every line; instead, capture the high-level logic."
+            instruction="Provide a comprehensive and detailed summary of the code's functionality. Explain the inputs, outputs, and internal logic step-by-step. Describe how the function interacts with its dependencies and the significance of each operation."
         )
 
         # Gemma chat format or simple completion?
