@@ -17,6 +17,7 @@ def run_benchmark(num_samples=20):
 
     predictions = []
     references = []
+    codes = []
 
     print(f"Generating summaries for {num_samples} examples...")
     for example in tqdm(dataset):
@@ -29,9 +30,10 @@ def run_benchmark(num_samples=20):
 
         predictions.append(summary)
         references.append(reference)
+        codes.append(code)
 
     print("Computing metrics...")
-    metrics = compute_metrics(predictions, references)
+    metrics = compute_metrics(predictions, references, code_snippets=codes)
 
     print("\nBenchmark Results:")
     for key, value in metrics.items():
