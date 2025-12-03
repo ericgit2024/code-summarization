@@ -71,11 +71,12 @@ class InferencePipeline:
     def summarize(self, code=None, function_name=None, instruction=None):
         if instruction is None:
              instruction = (
-                 "Provide a comprehensive and detailed explanation of the code's functionality. "
-                 "Break down the logic step-by-step, explaining the purpose of inputs, the flow of operations, and the role of outputs. "
+                 "Provide a comprehensive, detailed, paragraph-like explanation of the code's functionality. "
+                 "Avoid brief bullet points; instead, write a cohesive narrative that breaks down the logic step-by-step. "
+                 "Explain the purpose of inputs, the flow of operations, and the role of outputs in depth. "
                  "Crucially, integrate the 'Dependency Context' into the narrative, detailing how the function interacts with external calls "
                  "(e.g., 'It validates credentials by calling `authenticate`, which checks the database...'). "
-                 "Ensure the summary is thorough and covers all key aspects of the implementation."
+                 "Ensure the summary is thorough, covering all key aspects of the implementation with high granularity."
              )
 
         repo_context = None
@@ -206,7 +207,7 @@ class InferencePipeline:
         with torch.no_grad():
             outputs = self.model.generate(
                 **inputs,
-                max_new_tokens=1024,
+                max_new_tokens=2048,
                 do_sample=True,
                 temperature=0.2,
                 repetition_penalty=1.2,

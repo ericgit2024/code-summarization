@@ -62,11 +62,12 @@ class ReflectiveAgent:
         
         # Use the detailed instruction consistent with the inference pipeline
         instruction = (
-             "Provide a comprehensive and detailed explanation of the code's functionality. "
-             "Break down the logic step-by-step, explaining the purpose of inputs, the flow of operations, and the role of outputs. "
+             "Provide a comprehensive, detailed, paragraph-like explanation of the code's functionality. "
+             "Avoid brief bullet points; instead, write a cohesive narrative that breaks down the logic step-by-step. "
+             "Explain the purpose of inputs, the flow of operations, and the role of outputs in depth. "
              "Crucially, integrate the 'Dependency Context' into the narrative, detailing how the function interacts with external calls "
              "(e.g., 'It validates credentials by calling `authenticate`, which checks the database...'). "
-             "Ensure the summary is thorough and covers all key aspects of the implementation."
+             "Ensure the summary is thorough, covering all key aspects of the implementation with high granularity."
         )
         
         summary = self.pipeline.generate_from_code(
@@ -91,9 +92,11 @@ class ReflectiveAgent:
             f"### Response Format\n"
             f"Return a JSON object with:\n"
             f"- \"score\": (1-10)\n"
-            f"- \"feedback\": \"concise critique\"\n"
-            f"- \"missing_deps\": [\"func1\", \"func2\"] (list of function names that need more explanation)\n"
-            f"Do NOT output markdown formatting like ```json."
+            f"- \"feedback\": \"concise critique string\"\n"
+            f"- \"missing_deps\": [\"func1\", \"func2\"] (list of function names that need more explanation)\n\n"
+            f"Example:\n"
+            f'{{"score": 8, "feedback": "Good summary but misses the db connection part.", "missing_deps": ["connect_db"]}}\n'
+            f"Do NOT output markdown formatting like ```json. JUST the JSON string."
         )
         
         response = self.pipeline.generate_response(prompt)
@@ -111,8 +114,9 @@ class ReflectiveAgent:
             missing = data.get("missing_deps", [])
             score = data.get("score", 5)
         except:
-            logger.warning(f"Failed to parse critique JSON: {response}")
-            critique = response
+            logger.warning(f"Failed to parse critique JSON. Response start: {response[:100]}...")
+            # Fallback: Don't use the garbage response as critique.
+            critique = "The summary is missing key details and needs to cover more dependencies."
             missing = []
             score = 5
             
@@ -133,10 +137,11 @@ class ReflectiveAgent:
         
         missing = [d for d in state['missing_deps'] if d not in state.get('consulted_functions', [])]
         
+        critique_text = state['critique'].lower()
         if missing:
             logger.info(f"Policy: Found missing dependencies {missing}. Action: CONSULT")
             return {"action": "consult"}
-        elif "missing" in state['critique'].lower() or "unclear" in state['critique'].lower():
+        elif "missing" in critique_text or "unclear" in critique_text or "needs to cover" in critique_text or "more detailed" in critique_text:
              logger.info("Policy: Critique indicates issues. Action: REFINE")
              return {"action": "refine"}
         else:
