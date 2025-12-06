@@ -161,13 +161,22 @@ def run_pipeline(subset_size=None, num_epochs=5, num_workers=None, skip_download
             logger.info("Loading training data for RAG index...")
             dataset = hf_load_dataset("json", data_files=train_file, split="train")
             
-            # Extract codes and docstrings
-            codes = [ex['code'] for ex in dataset]
-            docstrings = [ex['summary'] for ex in dataset]
+            # Extract codes and create metadata dicts
+            codes = []
+            metadata_list = []
+            
+            for ex in dataset:
+                codes.append(ex['code'])
+                # Create metadata dict with docstring and name
+                metadata_list.append({
+                    'docstring': ex.get('summary', ''),
+                    'name': ex.get('name', ''),
+                    'complexity': ex.get('complexity', 1)
+                })
             
             logger.info(f"Building FAISS index from {len(codes)} examples...")
             rag_system = RAGSystem()
-            rag_system.build_index(codes, docstrings)
+            rag_system.build_index(codes, metadata_list)
             
             # Save index
             with open(rag_index, 'wb') as f:

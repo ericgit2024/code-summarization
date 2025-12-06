@@ -41,12 +41,60 @@ def download_codexglue(subset_size=None, output_file="codexglue_raw.jsonl", lang
     
     try:
         # Load CodeXGlue code summarization dataset
-        # The dataset is hosted on Hugging Face as "code_x_glue_cc_code_to_code_trans"
-        # For code summarization, we use the CodeSearchNet subset
+        # Using the new non-script dataset format (HF removed support for dataset scripts)
         logger.info("Loading dataset from Hugging Face...")
         
-        # CodeSearchNet is the base dataset for CodeXGlue code summarization
-        dataset = load_dataset("code_search_net", language, split="train")
+        dataset = None
+        errors = []
+        
+        # Method 1: Try CodeXGlue code-to-text (official, non-script version)
+        try:
+            logger.info("Attempting to load from 'code_x_glue_ct_code_to_text'...")
+            dataset = load_dataset(
+                "code_x_glue_ct_code_to_text",
+                language,
+                split="train"
+            )
+            logger.info("✓ Successfully loaded from code_x_glue_ct_code_to_text")
+        except Exception as e1:
+            errors.append(f"Method 1 failed: {e1}")
+            logger.warning(f"Failed to load from code_x_glue_ct_code_to_text: {e1}")
+            
+            # Method 2: Try CodeSearchNet v2 (non-script version)
+            try:
+                logger.info("Attempting to load from 'code_search_net_v2'...")
+                dataset = load_dataset(
+                    "code_search_net_v2",
+                    language,
+                    split="train"
+                )
+                logger.info("✓ Successfully loaded from code_search_net_v2")
+            except Exception as e2:
+                errors.append(f"Method 2 failed: {e2}")
+                logger.warning(f"Failed to load from code_search_net_v2: {e2}")
+                
+                # Method 3: Try Python-specific community dataset as fallback
+                try:
+                    logger.info("Attempting to load from 'Nan-Do/code-search-net-python'...")
+                    dataset = load_dataset(
+                        "Nan-Do/code-search-net-python",
+                        split="train"
+                    )
+                    logger.info("✓ Successfully loaded from Nan-Do/code-search-net-python")
+                except Exception as e3:
+                    errors.append(f"Method 3 failed: {e3}")
+                    logger.error("All dataset loading methods failed!")
+                    logger.error("Errors encountered:")
+                    for err in errors:
+                        logger.error(f"  - {err}")
+                    raise RuntimeError(
+                        "Could not load CodeSearchNet/CodeXGlue dataset. "
+                        "Please check your internet connection and HuggingFace dataset availability. "
+                        f"Errors: {'; '.join(errors)}"
+                    )
+        
+        if dataset is None:
+            raise RuntimeError("Dataset loading failed - dataset is None")
         
         logger.info(f"Loaded {len(dataset)} total examples")
         
@@ -67,20 +115,35 @@ def download_codexglue(subset_size=None, output_file="codexglue_raw.jsonl", lang
             for example in tqdm(dataset, desc="Converting examples"):
                 try:
                     # Extract relevant fields from CodeSearchNet format
-                    # CodeSearchNet schema: func_code_string, func_documentation_string, func_name, etc.
-                    code = example.get('whole_func_string') or example.get('func_code_string', '')
-                    summary = example.get('func_documentation_string', '')
+                    # CodeSearchNet schema varies by source, check available fields
+                    
+                    # Try different field names for code
+                    code = (example.get('whole_func_string') or 
+                           example.get('func_code_string') or 
+                           example.get('code') or 
+                           example.get('function') or '')
+                    
+                    # Try different field names for summary/documentation
+                    summary = (example.get('func_documentation_string') or 
+                              example.get('docstring') or 
+                              example.get('summary') or 
+                              example.get('doc') or '')
                     
                     # Skip examples with empty code or summary
                     if not code.strip() or not summary.strip():
                         skipped_count += 1
                         continue
                     
+                    # Try different field names for function name
+                    func_name = (example.get('func_name') or 
+                                example.get('name') or 
+                                example.get('identifier') or '')
+                    
                     # Create output record
                     record = {
                         'code': code,
                         'summary': summary,
-                        'name': example.get('func_name', ''),
+                        'name': func_name,
                         'language': language,
                         'url': example.get('url', ''),
                         'repo': example.get('repo', ''),
@@ -168,17 +231,22 @@ def validate_output(output_file):
         logger.info("VALIDATION REPORT")
         logger.info("="*60)
         logger.info(f"Total examples: {stats['total_examples']}")
-        logger.info(f"Examples with code: {stats['has_code']} ({stats['has_code']/stats['total_examples']*100:.1f}%)")
-        logger.info(f"Examples with summary: {stats['has_summary']} ({stats['has_summary']/stats['total_examples']*100:.1f}%)")
-        logger.info(f"Examples with name: {stats['has_name']} ({stats['has_name']/stats['total_examples']*100:.1f}%)")
-        logger.info(f"\nCode length stats:")
-        logger.info(f"  Average: {stats['avg_code_length']:.1f} chars")
-        logger.info(f"  Min: {stats['min_code_length']} chars")
-        logger.info(f"  Max: {stats['max_code_length']} chars")
-        logger.info(f"\nSummary length stats:")
-        logger.info(f"  Average: {stats['avg_summary_length']:.1f} chars")
-        logger.info(f"  Min: {stats['min_summary_length']} chars")
-        logger.info(f"  Max: {stats['max_summary_length']} chars")
+        
+        if stats['total_examples'] > 0:
+            logger.info(f"Examples with code: {stats['has_code']} ({stats['has_code']/stats['total_examples']*100:.1f}%)")
+            logger.info(f"Examples with summary: {stats['has_summary']} ({stats['has_summary']/stats['total_examples']*100:.1f}%)")
+            logger.info(f"Examples with name: {stats['has_name']} ({stats['has_name']/stats['total_examples']*100:.1f}%)")
+            logger.info(f"\nCode length stats:")
+            logger.info(f"  Average: {stats['avg_code_length']:.1f} chars")
+            logger.info(f"  Min: {stats['min_code_length']} chars")
+            logger.info(f"  Max: {stats['max_code_length']} chars")
+            logger.info(f"\nSummary length stats:")
+            logger.info(f"  Average: {stats['avg_summary_length']:.1f} chars")
+            logger.info(f"  Min: {stats['min_summary_length']} chars")
+            logger.info(f"  Max: {stats['max_summary_length']} chars")
+        else:
+            logger.warning("No examples found in the dataset!")
+        
         logger.info("="*60 + "\n")
         
         return stats
