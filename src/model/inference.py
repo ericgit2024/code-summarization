@@ -18,26 +18,35 @@ from unittest.mock import MagicMock
 from src.model.reflective_agent import ReflectiveAgent
 
 class InferencePipeline:
-    def __init__(self, model_dir="gemma_lora_finetuned", index_path="rag_index.pkl", repo_path=None):
+    def __init__(self, model_dir="gemma_lora_finetuned", index_path="rag_index.pkl", repo_path=None, allow_mock=False):
         print("Loading model and tokenizer...")
-        # Load base model
+        # Load base model - no mock fallback unless explicitly allowed
         try:
             self.model, self.tokenizer = load_gemma_model()
+            print("✓ Successfully loaded Gemma model")
         except Exception as e:
-            print(f"WARNING: Failed to load real model: {e}. Using mock loader.")
-            from src.model.model_loader_mock import load_gemma_model as mock_loader
-            self.model, self.tokenizer = mock_loader()
+            if allow_mock:
+                print(f"WARNING: Failed to load real model: {e}. Using mock loader.")
+                from src.model.model_loader_mock import load_gemma_model as mock_loader
+                self.model, self.tokenizer = mock_loader()
+            else:
+                raise RuntimeError(
+                    f"Failed to load Gemma model: {e}\n"
+                    "The smart agent requires the real Gemma model to function correctly.\n"
+                    "Please ensure the model is properly installed and accessible."
+                ) from e
 
         self.tokenizer.pad_token = self.tokenizer.eos_token
 
         # Load LoRA adapter if exists, else use base model
         if os.path.exists(model_dir):
             print(f"Loading LoRA adapter from {model_dir}...")
-            # Mocking PeftModel for tests if needed, or just skip if using mock loader
             try:
                 self.model = PeftModel.from_pretrained(self.model, model_dir)
-            except:
-                pass
+                print("✓ Successfully loaded LoRA adapter")
+            except Exception as e:
+                print(f"Warning: Failed to load LoRA adapter: {e}")
+                print("Continuing with base model...")
         else:
             print("LoRA adapter not found. Using base model.")
 
@@ -185,20 +194,16 @@ class InferencePipeline:
     def generate_response(self, prompt):
         """
         Generates a response from the model given a raw prompt.
+        Uses the real Gemma model - no mock fallback.
         """
-        # Check if we are using a mock model (MagicMock)
-        if isinstance(self.model, MagicMock) or self.model.__class__.__name__ == 'MagicMock':
-            return self._smart_mock_generate(prompt)
-
         max_input_length = 6000
 
-        # Handle mock tokenizer if it's a MagicMock but model isn't (rare edge case)
-        if hasattr(self.tokenizer, "__call__") and not isinstance(self.tokenizer, MagicMock):
-            inputs = self.tokenizer(prompt, return_tensors="pt", truncation=True, max_length=max_input_length).to(self.model.device)
-            input_len = inputs.input_ids.shape[1]
-        else:
-             # Fallback
-             return self._smart_mock_generate(prompt)
+        # Tokenize input
+        if not hasattr(self.tokenizer, "__call__"):
+            raise RuntimeError("Tokenizer is not properly initialized. Cannot generate response.")
+        
+        inputs = self.tokenizer(prompt, return_tensors="pt", truncation=True, max_length=max_input_length).to(self.model.device)
+        input_len = inputs.input_ids.shape[1]
         
         print(f"Input Token Length: {input_len}")
         if input_len >= max_input_length:
@@ -219,25 +224,6 @@ class InferencePipeline:
         summary = self.tokenizer.decode(generated_tokens, skip_special_tokens=True).strip()
 
         return summary
-
-    def _smart_mock_generate(self, prompt):
-        """
-        Simulates intelligent responses for the Agent when using a mock model.
-        """
-        print("MOCK: Generating smart response based on prompt...")
-        
-        if "Return a JSON object" in prompt:
-            # Critique Request
-            return '{"score": 4, "feedback": "The summary mentions database operations but lacks details on how records are saved or encrypted. It misses the specific role of \'save_record\'.", "missing_deps": ["save_record"]}'
-        
-        elif "Refine the summary" in prompt:
-            # Refine Request
-            return "Refined Summary: The function `process_transaction` handles financial transaction processing. It first establishes a secure database connection using `connect_db` and validates the transaction amount. Crucially, it uses `save_record` to securely persist the transaction data, which handles encryption of sensitive fields before writing to the 'audit_log' table."
-            
-        else:
-            # Initial Summary Request
-            return "Basic Summary: The function processes a transaction by connecting to a database and saving the record."
-
 
     def construct_hierarchical_prompt(self, code, metadata, repo_context, retrieved_items, instruction):
         """
