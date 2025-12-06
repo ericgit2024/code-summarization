@@ -13,7 +13,8 @@ def train(
     per_device_train_batch_size=1,
     per_device_eval_batch_size=1,
     learning_rate=2e-4,
-    index_path="rag_index.pkl"
+    index_path="rag_index.pkl",
+    dataset_name="custom"  # New parameter: "custom" or "codexglue"
 ):
     # 1. Load and setup model
     print("Loading model...")
@@ -32,13 +33,16 @@ def train(
         rag_system = None
 
     # 3. Prepare dataset
-    print("Loading and preparing dataset...")
-    dataset = load_and_process_dataset(split="train")
+    print(f"Loading and preparing dataset: {dataset_name}")
+    dataset = load_and_process_dataset(split="train", dataset_name=dataset_name)
 
     # Split dataset into training and validation
-    dataset_split = dataset.train_test_split(test_size=0.1)
+    dataset_split = dataset.train_test_split(test_size=0.1, seed=42)
     train_dataset = dataset_split["train"]
     eval_dataset = dataset_split["test"]
+    
+    print(f"Training set size: {len(train_dataset)}")
+    print(f"Evaluation set size: {len(eval_dataset)}")
 
     def format_prompt(example):
         structural_prompt = construct_structural_prompt(example['code'])

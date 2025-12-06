@@ -55,11 +55,50 @@ python3 -m streamlit run src/ui/app.py
 *   **Debug & Visualize:** Select a function to see its **Control Flow Graph (CFG)** visualized and its **Repository Context** (dependencies) listed.
 *   **Smart Agent:** Check "Use Smart Agent" to enable the self-correcting workflow.
 
+### 5. Dataset Selection
+
+The system supports two datasets:
+
+**Custom Dataset** (default):
+- 386 hand-crafted examples with dependency-rich summaries
+- Located in `code_summary_dataset.jsonl`
+
+**CodeXGlue Dataset**:
+- Large-scale dataset from CodeSearchNet (400K+ Python examples)
+- Requires download and preprocessing (see [CODEXGLUE_INTEGRATION.md](./CODEXGLUE_INTEGRATION.md))
+
+**Automated Pipeline (Recommended)**:
+```bash
+# Single command to download, preprocess, split, build RAG, and train
+python run_codexglue_pipeline.py --subset 10000 --epochs 5
+```
+
+**Manual Setup** (if you prefer step-by-step):
+```bash
+# Download subset (recommended for testing)
+python -m src.scripts.download_codexglue --subset 10000 --output codexglue_raw.jsonl --validate
+
+# Preprocess with structural features
+python -m src.scripts.preprocess_codexglue --input codexglue_raw.jsonl --output codexglue_processed.jsonl
+
+# Create train/val/test splits
+python -m src.scripts.create_dataset_splits --input codexglue_processed.jsonl
+```
+
 ### 6. Training (Optional)
-To fine-tune the model on your own dataset:
+To fine-tune the model on your chosen dataset:
+
+**Custom dataset**:
 ```bash
 python3 -m src.model.trainer
 ```
+
+**CodeXGlue dataset**:
+```bash
+python3 -m src.model.trainer --dataset-name codexglue
+```
+
+For detailed CodeXGlue integration instructions, see [CODEXGLUE_INTEGRATION.md](./CODEXGLUE_INTEGRATION.md).
 
 ## How the Reflective Agent Works
 
