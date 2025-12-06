@@ -205,10 +205,17 @@ class InferencePipeline:
         inputs = self.tokenizer(prompt, return_tensors="pt", truncation=True, max_length=max_input_length).to(self.model.device)
         input_len = inputs.input_ids.shape[1]
         
+        print(f"\n{'='*60}")
+        print(f"DEBUG: generate_response() called")
+        print(f"{'='*60}")
         print(f"Input Token Length: {input_len}")
+        print(f"Prompt (first 500 chars):\n{prompt[:500]}")
+        print(f"Prompt (last 200 chars):\n{prompt[-200:]}")
+        
         if input_len >= max_input_length:
             print("WARNING: Prompt was truncated! This may lead to poor results.")
 
+        print(f"\nGenerating with model: {type(self.model).__name__}")
         with torch.no_grad():
             outputs = self.model.generate(
                 **inputs,
@@ -221,8 +228,39 @@ class InferencePipeline:
 
         # Decode and strip the prompt from the output by slicing token IDs
         generated_tokens = outputs[0][input_len:]
+        print(f"\nGenerated token count: {len(generated_tokens)}")
+        
         summary = self.tokenizer.decode(generated_tokens, skip_special_tokens=True).strip()
-
+        
+        print(f"Generated summary length: {len(summary)} chars")
+        print(f"Generated summary (first 300 chars):\n{summary[:300]}")
+        
+        if not summary or len(summary) < 10:
+            print("WARNING: Generated summary is empty or too short!")
+            print(f"Full generated text: '{summary}'")
+        
+        # Validation: Ensure we didn't just echo the prompt
+        if summary and len(summary) > 100:
+            # Check if the summary contains large chunks of the prompt
+            prompt_lines = prompt.split('\n')
+            for line in prompt_lines:
+                if len(line) > 50 and line in summary:
+                    print(f"WARNING: Detected prompt echo in output. Line: {line[:100]}")
+        
+        # Validation: Ensure minimum quality
+        if not summary or len(summary) < 20:
+            error_msg = (
+                "Error: Model failed to generate a meaningful summary.\n"
+                "This could be due to:\n"
+                "1. Model not loaded properly (check if using mock model)\n"
+                "2. Prompt format incompatible with the model\n"
+                "3. Generation parameters need adjustment\n"
+                f"Generated text was: '{summary}'"
+            )
+            print(f"\n{error_msg}")
+            return error_msg
+        
+        print(f"{'='*60}\n")
         return summary
 
     def construct_hierarchical_prompt(self, code, metadata, repo_context, retrieved_items, instruction):

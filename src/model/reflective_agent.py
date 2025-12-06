@@ -233,5 +233,22 @@ class ReflectiveAgent:
             "action": "start"
         }
         
+        logger.info(f"Starting ReflectiveAgent workflow for function: {function_name}")
         final_state = self.workflow.invoke(initial_state)
-        return final_state["summary"]
+        summary = final_state.get("summary", "")
+        
+        # Validation
+        if not summary or len(summary) < 20:
+            logger.error(f"Agent workflow completed but summary is empty or too short: '{summary}'")
+            error_msg = (
+                "Error: Smart Agent failed to generate a summary.\n"
+                "This could be due to:\n"
+                "1. Model generation issues (check console logs for 'generate_response' debug output)\n"
+                "2. Workflow errors during refinement\n"
+                "3. Empty initial summary propagating through the workflow\n\n"
+                "Please try normal mode or check the console logs for more details."
+            )
+            return error_msg
+        
+        logger.info(f"ReflectiveAgent completed successfully. Summary length: {len(summary)} chars")
+        return summary
