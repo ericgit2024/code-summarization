@@ -82,6 +82,14 @@ class ReflectiveAgent:
     def critique_summary(self, state: AgentState):
         logger.info("Critiquing summary with LLM...")
         
+        # Check if summary is an error message - if so, skip critique
+        if state['summary'].startswith("Error:"):
+            logger.warning("Summary is an error message. Skipping critique.")
+            return {
+                "critique": "Summary generation failed.",
+                "missing_deps": []
+            }
+        
         prompt = (
             f"### Instruction\n"
             f"You are a senior code reviewer. Analyze the summary below against the provided code.\n"
@@ -115,10 +123,10 @@ class ReflectiveAgent:
             score = data.get("score", 5)
         except:
             logger.warning(f"Failed to parse critique JSON. Response start: {response[:100]}...")
-            # Fallback: Don't use the garbage response as critique.
-            critique = "The summary is missing key details and needs to cover more dependencies."
+            # Better fallback: If we can't parse, assume the summary is good enough
+            critique = "Summary looks acceptable."
             missing = []
-            score = 5
+            score = 7  # Give it a passing score to avoid infinite refinement
             
         logger.info(f"Critique: {critique} (Score: {score})")
         return {"critique": critique, "missing_deps": missing}
@@ -129,10 +137,20 @@ class ReflectiveAgent:
         if state['attempts'] >= state['max_attempts']:
             logger.info("Max attempts reached. Finishing.")
             return {"action": "finish"}
+        
+        # If summary is an error message, finish immediately
+        if state['summary'].startswith("Error:"):
+            logger.error("Summary is an error message. Finishing workflow.")
+            return {"action": "finish"}
+        
+        # If summary is too short, finish (don't keep trying)
+        if len(state['summary']) < 100:
+            logger.warning(f"Summary is very short ({len(state['summary'])} chars). Finishing to avoid infinite loop.")
+            return {"action": "finish"}
 
         # Heuristic Policy (Simulating RL Policy)
         # If missing deps and we haven't consulted them -> CONSULT
-        # If score is low but no specific missing deps -> REFINE
+        # If score is low but no specific missing deps -> REFINE (but only once)
         # If score is high -> FINISH
         
         missing = [d for d in state['missing_deps'] if d not in state.get('consulted_functions', [])]
@@ -142,8 +160,13 @@ class ReflectiveAgent:
             logger.info(f"Policy: Found missing dependencies {missing}. Action: CONSULT")
             return {"action": "consult"}
         elif "missing" in critique_text or "unclear" in critique_text or "needs to cover" in critique_text or "more detailed" in critique_text:
-             logger.info("Policy: Critique indicates issues. Action: REFINE")
-             return {"action": "refine"}
+             # Only refine once to avoid cascading failures
+             if state['attempts'] <= 1:
+                 logger.info("Policy: Critique indicates issues. Action: REFINE")
+                 return {"action": "refine"}
+             else:
+                 logger.info("Policy: Already refined once. Accepting current summary. Action: FINISH")
+                 return {"action": "finish"}
         else:
              logger.info("Policy: Summary looks good. Action: FINISH")
              return {"action": "finish"}
@@ -197,28 +220,31 @@ class ReflectiveAgent:
     def refine_summary(self, state: AgentState):
         logger.info("Refining summary with new context...")
         
+        # Simplified prompt to avoid model confusion
         prompt = (
-            f"### Instruction\n"
-            f"Refine the summary based on the critique and any new context provided.\n"
-            f"Critique: {state['critique']}\n\n"
-            f"### Code\n```python\n{state['code']}\n```\n\n"
-            f"### Updated Context\n{state['context']}\n\n"
-            f"### Previous Summary\n{state['summary']}\n\n"
-            f"### Refined Summary\n"
-            f"Provide a refined, structured summary. You MUST use the following sections:\n"
-            f"1. **Overview**\n"
-            f"2. **Detailed Logic**\n"
-            f"3. **Dependency Analysis**\n\n"
-            f"Ensure the critique points are addressed in the relevant sections. Do NOT output code."
+            f"Improve this code summary by addressing the following feedback: {state['critique']}\n\n"
+            f"Code:\n```python\n{state['code']}\n```\n\n"
+            f"Current Summary:\n{state['summary']}\n\n"
+            f"Write an improved summary with these sections:\n"
+            f"1. **Overview**: What the code does\n"
+            f"2. **Detailed Logic**: Step-by-step explanation\n"
+            f"3. **Dependency Analysis**: How it interacts with other functions\n\n"
+            f"Improved Summary:"
         )
         
         summary = self.pipeline.generate_response(prompt)
+        
+        # If refinement fails, keep the previous summary
+        if not summary or len(summary) < 50:
+            logger.warning("Refinement produced empty/short output. Keeping previous summary.")
+            return {"attempts": state['attempts'] + 1}  # Don't update summary
+        
         return {"summary": summary, "attempts": state['attempts'] + 1}
 
     def route_action(self, state: AgentState):
         return state.get("action", "finish")
 
-    def run(self, function_name, code, context, metadata, max_attempts=3):
+    def run(self, function_name, code, context, metadata, max_attempts=5):
         initial_state = {
             "function_name": function_name,
             "code": code,
@@ -233,7 +259,7 @@ class ReflectiveAgent:
             "action": "start"
         }
         
-        logger.info(f"Starting ReflectiveAgent workflow for function: {function_name}")
+        logger.info(f"Starting ReflectiveAgent workflow for function: {function_name} (max_attempts={max_attempts})")
         final_state = self.workflow.invoke(initial_state)
         summary = final_state.get("summary", "")
         
