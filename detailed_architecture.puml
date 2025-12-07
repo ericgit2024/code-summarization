@@ -1,0 +1,752 @@
+@startuml NeuroGraph-CodeRAG Detailed Architecture
+!define RECTANGLE class
+
+skinparam componentStyle rectangle
+skinparam packageStyle rectangle
+skinparam linetype ortho
+skinparam nodesep 80
+skinparam ranksep 80
+
+title NeuroGraph-CodeRAG: Complete System Architecture
+
+' ============================================
+' LAYER 1: PRESENTATION LAYER
+' ============================================
+package "Presentation Layer" <<Rectangle>> #E8F5E9 {
+    component "Streamlit Web Interface" as UI {
+        portin "User Input" as UI_IN
+        portout "Display Output" as UI_OUT
+        
+        component "File Upload Handler" as FileUpload
+        component "Function Selector" as FuncSelect
+        component "Mode Toggle" as ModeToggle {
+            note right
+                • Normal Mode (Fast)
+                • Smart Agent Mode (Thorough)
+            end note
+        }
+        component "Visualization Engine" as VizEngine {
+            component "CFG Renderer" as CFGViz
+            component "Call Graph Renderer" as CGViz
+            component "AST Viewer" as ASTViz
+        }
+        component "Summary Display" as SummaryDisplay
+        component "Progress Indicators" as Progress
+    }
+}
+
+' ============================================
+' LAYER 2: APPLICATION LOGIC LAYER
+' ============================================
+package "Application Logic Layer" <<Rectangle>> #E3F2FD {
+    
+    ' Inference Pipeline
+    component "Inference Pipeline" as Pipeline {
+        portin "Code Input" as Pipeline_IN
+        portout "Summary Output" as Pipeline_OUT
+        
+        component "Orchestrator" as Orchestrator {
+            note right
+                Coordinates entire
+                summarization workflow
+            end note
+        }
+        
+        component "Prompt Builder" as PromptBuilder {
+            component "Metadata Serializer" as MetaSer
+            component "CFG Serializer" as CFGSer
+            component "PDG Serializer" as PDGSer
+            component "Context Formatter" as CtxFormat
+            component "RAG Augmenter" as RAGAug
+        }
+        
+        component "Model Invoker" as ModelInvoker {
+            note right
+                Handles LLM inference
+                with generation params
+            end note
+        }
+        
+        component "Response Parser" as ResponseParser
+    }
+    
+    ' Reflective Agent (LangGraph)
+    component "Reflective Agent (LangGraph)" as Agent {
+        portin "Agent Input" as Agent_IN
+        portout "Refined Summary" as Agent_OUT
+        
+        component "Agent State Manager" as StateManager {
+            note right
+                AgentState:
+                • function_name
+                • code, context
+                • summary, critique
+                • missing_deps
+                • consulted_functions
+                • attempts, max_attempts
+                • action
+            end note
+        }
+        
+        component "LangGraph Workflow" as Workflow {
+            component "GENERATE Node" as GenNode {
+                note bottom
+                    Creates initial summary
+                    using structural prompt
+                end note
+            }
+            
+            component "CRITIQUE Node" as CritNode {
+                note bottom
+                    Analyzes summary:
+                    • Factual accuracy
+                    • Missing dependencies
+                    • Control flow correctness
+                    • Completeness
+                    Returns: score (0-10), issues, missing_funcs
+                end note
+            }
+            
+            component "DECIDE Node" as DecNode {
+                note bottom
+                    Decision Logic:
+                    • score ≥ 8 → FINISH
+                    • missing_deps → CONSULT
+                    • else → REFINE
+                    • max_attempts → FINISH
+                end note
+            }
+            
+            component "CONSULT Node" as ConsNode {
+                note bottom
+                    Queries repository graph
+                    for missing functions
+                end note
+            }
+            
+            component "REFINE Node" as RefNode {
+                note bottom
+                    Improves summary
+                    based on critique
+                end note
+            }
+        }
+        
+        component "Quality Checker" as QualityCheck {
+            note right
+                Threshold: 8/10
+            end note
+        }
+    }
+}
+
+' ============================================
+' LAYER 3: STRUCTURAL ANALYSIS LAYER
+' ============================================
+package "Structural Analysis Layer" <<Rectangle>> #FFF3E0 {
+    
+    ' Repository Graph Builder
+    component "Repository Graph Builder" as RepoGraphBuilder {
+        portin "Repository Path" as Repo_IN
+        portout "Call Graph" as CG_OUT
+        
+        component "File Parser" as FileParser {
+            note right
+                Parses all .py files
+                in repository
+            end note
+        }
+        
+        component "Function Extractor" as FuncExtractor {
+            note right
+                Extracts:
+                • Function definitions
+                • Class methods
+                • Metadata
+            end note
+        }
+        
+        component "Call Graph Constructor" as CGConstructor {
+            component "Call Site Identifier" as CallSiteID
+            component "Import Resolver" as ImportResolver {
+                note bottom
+                    Resolves cross-file
+                    dependencies
+                end note
+            }
+            component "Edge Builder" as EdgeBuilder
+        }
+        
+        component "Subgraph Extractor" as SubgraphExtractor {
+            component "Relevance Scorer" as RelScorer {
+                note bottom
+                    Score = α·proximity + 
+                            β·complexity + 
+                            γ·cf_importance
+                    (α=0.5, β=0.3, γ=0.2)
+                end note
+            }
+            component "Greedy Selector" as GreedySelect {
+                note bottom
+                    Selects functions
+                    within token budget
+                end note
+            }
+        }
+        
+        database "NetworkX Graph" as NXGraph {
+            note right
+                Directed Graph:
+                • Nodes: Functions
+                • Edges: Calls
+                • Metadata: complexity,
+                  params, returns, etc.
+            end note
+        }
+    }
+    
+    ' AST Analyzer
+    component "AST Analyzer" as ASTAnalyzer {
+        portin "Source Code" as AST_IN
+        portout "AST + Metadata" as AST_OUT
+        
+        component "Python AST Parser" as PythonAST {
+            note right
+                Uses Python ast module
+            end note
+        }
+        
+        component "Metadata Extractor" as MetaExtractor {
+            component "Complexity Calculator" as ComplexCalc {
+                note bottom
+                    Cyclomatic complexity
+                end note
+            }
+            component "Parameter Extractor" as ParamExt
+            component "Variable Tracker" as VarTracker
+            component "Call Identifier" as CallID
+        }
+        
+        component "AST Transformer" as ASTTransform {
+            note right
+                Converts AST to
+                serializable format
+            end note
+        }
+    }
+    
+    ' Graph Utilities
+    component "Graph Utilities" as GraphUtils {
+        portin "AST Input" as GU_IN
+        portout "CFG + PDG" as GU_OUT
+        
+        component "CFG Constructor" as CFGConstructor {
+            component "Basic Block Identifier" as BBIdentifier
+            component "Control Flow Analyzer" as CFAnalyzer {
+                note bottom
+                    Handles:
+                    • If/Else
+                    • While/For loops
+                    • Try/Except
+                    • Return statements
+                end note
+            }
+            component "Edge Labeler" as EdgeLabeler {
+                note bottom
+                    Labels: True, False,
+                    Exception, etc.
+                end note
+            }
+        }
+        
+        component "PDG Constructor" as PDGConstructor {
+            component "Data Dependency Analyzer" as DataDepAnalyzer {
+                note bottom
+                    Tracks variable
+                    def-use chains
+                end note
+            }
+            component "Control Dependency Analyzer" as CtrlDepAnalyzer {
+                note bottom
+                    Identifies control
+                    dependencies
+                end note
+            }
+            component "Dependency Merger" as DepMerger
+        }
+        
+        component "Graph Visualizer" as GraphViz {
+            component "DOT Generator" as DOTGen
+            component "Graphviz Renderer" as GVRender
+        }
+    }
+}
+
+' ============================================
+' LAYER 4: RETRIEVAL SYSTEM LAYER
+' ============================================
+package "Retrieval System Layer" <<Rectangle>> #F3E5F5 {
+    
+    component "RAG System" as RAGSystem {
+        portin "Query Code" as RAG_IN
+        portout "Similar Examples" as RAG_OUT
+        
+        component "Code Encoder" as CodeEncoder {
+            note right
+                SentenceTransformer
+                microsoft/codebert-base
+                Output: 768-dim vector
+            end note
+        }
+        
+        component "Index Manager" as IndexManager {
+            component "Index Builder" as IndexBuilder {
+                note bottom
+                    Batch encoding
+                    (batch_size=32)
+                end note
+            }
+            component "Index Loader" as IndexLoader
+            component "Index Saver" as IndexSaver
+        }
+        
+        component "Similarity Search" as SimSearch {
+            note right
+                Top-k retrieval
+                (k=3 default)
+            end note
+        }
+        
+        component "Example Formatter" as ExampleFormatter {
+            note right
+                Formats retrieved
+                code-summary pairs
+                for prompt
+            end note
+        }
+        
+        database "FAISS Index" as FAISSIndex {
+            note right
+                Index Type: Flat L2 or IVF
+                Dimension: 768
+                Stored: code-summary pairs
+            end note
+        }
+        
+        database "Example Store" as ExampleStore {
+            note right
+                Stores original
+                code-summary pairs
+            end note
+        }
+    }
+}
+
+' ============================================
+' LAYER 5: MODEL INFRASTRUCTURE LAYER
+' ============================================
+package "Model Infrastructure Layer" <<Rectangle>> #FCE4EC {
+    
+    component "Model Loader" as ModelLoader {
+        portin "Model Request" as Model_IN
+        portout "Loaded Model" as Model_OUT
+        
+        component "Model Initializer" as ModelInit {
+            note right
+                Loads google/gemma-2b
+                from Hugging Face
+            end note
+        }
+        
+        component "LoRA Adapter Manager" as LoRAManager {
+            component "Adapter Loader" as AdapterLoader
+            component "Adapter Merger" as AdapterMerger {
+                note bottom
+                    Merges LoRA weights
+                    with base model
+                end note
+            }
+        }
+        
+        component "Device Manager" as DeviceManager {
+            note right
+                Auto-detects:
+                • CUDA (GPU)
+                • CPU fallback
+            end note
+        }
+        
+        component "Tokenizer" as Tokenizer {
+            note right
+                Gemma tokenizer
+                Max length: 4096
+            end note
+        }
+    }
+    
+    component "LLM (Gemma-2b)" as LLM {
+        portin "Prompt" as LLM_IN
+        portout "Generated Text" as LLM_OUT
+        
+        component "Base Model" as BaseModel {
+            note right
+                google/gemma-2b
+                2B parameters
+            end note
+        }
+        
+        component "LoRA Adapters" as LoRAAdapters {
+            note right
+                Rank: 8 or 16
+                Alpha: 32
+                Target: Q, V projections
+                Dropout: 0.1
+            end note
+        }
+        
+        component "Generation Engine" as GenEngine {
+            note right
+                Parameters:
+                • temperature: 0.7
+                • top_p: 0.9
+                • max_length: 512
+                • do_sample: True
+            end note
+        }
+    }
+}
+
+' ============================================
+' LAYER 6: DATA & TRAINING LAYER
+' ============================================
+package "Data & Training Layer" <<Rectangle>> #E0F2F1 {
+    
+    component "Dataset Loader" as DatasetLoader {
+        portin "Dataset Path" as Data_IN
+        portout "Loaded Data" as Data_OUT
+        
+        component "Custom Dataset Handler" as CustomDataset {
+            note right
+                386 hand-crafted
+                dependency-rich examples
+            end note
+        }
+        
+        component "CodeXGlue Handler" as CodeXGlueDataset {
+            note right
+                400K+ examples
+                from CodeSearchNet
+            end note
+        }
+        
+        component "Data Preprocessor" as DataPreprocessor {
+            component "Code Cleaner" as CodeCleaner
+            component "Summary Normalizer" as SummaryNorm
+            component "Structural Prompt Generator" as StructPromptGen
+        }
+        
+        component "Split Manager" as SplitManager {
+            note right
+                Train: 80%
+                Validation: 10%
+                Test: 10%
+            end note
+        }
+    }
+    
+    component "Trainer" as Trainer {
+        portin "Training Data" as Train_IN
+        portout "Trained Model" as Train_OUT
+        
+        component "Training Loop" as TrainLoop {
+            component "Batch Generator" as BatchGen {
+                note bottom
+                    Batch size: 4
+                    Gradient accumulation: 4
+                    Effective batch: 16
+                end note
+            }
+            component "Loss Computation" as LossComp {
+                note bottom
+                    Cross-entropy for
+                    next-token prediction
+                end note
+            }
+            component "Backward Pass" as BackwardPass
+        }
+        
+        component "Optimizer" as Optimizer {
+            note right
+                AdamW
+                Learning rate: 2e-4
+                Cosine schedule
+            end note
+        }
+        
+        component "Checkpoint Manager" as CheckpointManager {
+            component "Model Saver" as ModelSaver
+            component "Best Model Tracker" as BestTracker {
+                note bottom
+                    Tracks best validation
+                    BLEU/ROUGE scores
+                end note
+            }
+        }
+        
+        component "Metrics Logger" as MetricsLogger {
+            note right
+                Logs:
+                • Loss
+                • BLEU, ROUGE
+                • Training time
+            end note
+        }
+    }
+    
+    component "Evaluation Metrics" as EvalMetrics {
+        portin "Predictions + References" as Eval_IN
+        portout "Metric Scores" as Eval_OUT
+        
+        component "BLEU Calculator" as BLEUCalc {
+            note right
+                SacreBLEU
+                (standardized)
+            end note
+        }
+        component "ROUGE Calculator" as ROUGECalc
+        component "METEOR Calculator" as METEORCalc
+        component "BERTScore Calculator" as BERTScoreCalc
+        component "Dependency Coverage" as DepCov {
+            note right
+                Custom metric:
+                DepCov = |Deps in summary| / |Actual deps|
+            end note
+        }
+        component "Structural Accuracy" as StructAcc {
+            note right
+                Verifies control flow
+                descriptions match CFG
+            end note
+        }
+    }
+    
+    database "Training Datasets" as TrainDatasets {
+        artifact "code_summary_dataset.jsonl" as CustomData
+        artifact "codexglue_train.jsonl" as CGTrain
+        artifact "codexglue_validation.jsonl" as CGVal
+        artifact "codexglue_test.jsonl" as CGTest
+    }
+    
+    database "Model Checkpoints" as Checkpoints {
+        artifact "best_model.pt" as BestModel
+        artifact "checkpoint_epoch_1.pt" as CP1
+        artifact "checkpoint_epoch_2.pt" as CP2
+        artifact "lora_adapters.pt" as LoRAWeights
+    }
+}
+
+' ============================================
+' RELATIONSHIPS - LAYER 1 TO LAYER 2
+' ============================================
+UI_IN --> FileUpload : "Upload code/repo"
+FileUpload --> FuncSelect : "List functions"
+FuncSelect --> ModeToggle : "Select function"
+ModeToggle --> Pipeline_IN : "Normal mode"
+ModeToggle --> Agent_IN : "Smart Agent mode"
+
+Pipeline_OUT --> SummaryDisplay : "Display summary"
+Agent_OUT --> SummaryDisplay : "Display refined summary"
+VizEngine --> UI_OUT : "Render visualizations"
+
+' ============================================
+' RELATIONSHIPS - LAYER 2 INTERNAL
+' ============================================
+Pipeline_IN --> Orchestrator
+Orchestrator --> PromptBuilder : "Build structural prompt"
+PromptBuilder --> ModelInvoker : "Send prompt"
+ModelInvoker --> ResponseParser : "Parse response"
+ResponseParser --> Pipeline_OUT
+
+MetaSer --> PromptBuilder
+CFGSer --> PromptBuilder
+PDGSer --> PromptBuilder
+CtxFormat --> PromptBuilder
+RAGAug --> PromptBuilder
+
+' Agent workflow
+Agent_IN --> StateManager
+StateManager --> GenNode : "Initialize"
+GenNode --> CritNode : "Initial summary"
+CritNode --> DecNode : "Critique"
+DecNode --> ConsNode : "If missing deps"
+DecNode --> RefNode : "If issues found"
+DecNode --> QualityCheck : "If score ≥ 8"
+ConsNode --> RefNode : "Add context"
+RefNode --> CritNode : "Re-critique"
+QualityCheck --> Agent_OUT : "Finish"
+
+' ============================================
+' RELATIONSHIPS - LAYER 2 TO LAYER 3
+' ============================================
+Orchestrator --> RepoGraphBuilder : "Build/query graph"
+Orchestrator --> ASTAnalyzer : "Parse code"
+Orchestrator --> GraphUtils : "Generate CFG/PDG"
+
+ConsNode --> SubgraphExtractor : "Query missing functions"
+
+MetaSer --> ASTAnalyzer : "Get metadata"
+CFGSer --> GraphUtils : "Get CFG"
+PDGSer --> GraphUtils : "Get PDG"
+CtxFormat --> SubgraphExtractor : "Get context"
+
+' ============================================
+' RELATIONSHIPS - LAYER 3 INTERNAL
+' ============================================
+Repo_IN --> FileParser
+FileParser --> FuncExtractor : "Parsed files"
+FuncExtractor --> CGConstructor : "Functions"
+CallSiteID --> EdgeBuilder
+ImportResolver --> EdgeBuilder
+EdgeBuilder --> NXGraph : "Build graph"
+NXGraph --> SubgraphExtractor : "Query"
+RelScorer --> GreedySelect
+GreedySelect --> CG_OUT
+
+AST_IN --> PythonAST
+PythonAST --> MetaExtractor : "AST tree"
+MetaExtractor --> ASTTransform
+ComplexCalc --> MetaExtractor
+ParamExt --> MetaExtractor
+VarTracker --> MetaExtractor
+CallID --> MetaExtractor
+ASTTransform --> AST_OUT
+
+GU_IN --> CFGConstructor
+GU_IN --> PDGConstructor
+BBIdentifier --> CFAnalyzer
+CFAnalyzer --> EdgeLabeler
+EdgeLabeler --> GraphViz
+DataDepAnalyzer --> DepMerger
+CtrlDepAnalyzer --> DepMerger
+DepMerger --> GraphViz
+GraphViz --> GU_OUT
+DOTGen --> GVRender
+
+' ============================================
+' RELATIONSHIPS - LAYER 2 TO LAYER 4
+' ============================================
+RAGAug --> RAGSystem : "Retrieve examples"
+
+' ============================================
+' RELATIONSHIPS - LAYER 4 INTERNAL
+' ============================================
+RAG_IN --> CodeEncoder
+CodeEncoder --> SimSearch : "Query vector"
+SimSearch --> FAISSIndex : "Search"
+FAISSIndex --> SimSearch : "Indices"
+SimSearch --> ExampleStore : "Retrieve examples"
+ExampleStore --> ExampleFormatter
+ExampleFormatter --> RAG_OUT
+
+IndexBuilder --> FAISSIndex : "Build"
+IndexLoader --> FAISSIndex : "Load"
+IndexSaver --> FAISSIndex : "Save"
+
+' ============================================
+' RELATIONSHIPS - LAYER 2 TO LAYER 5
+' ============================================
+ModelInvoker --> LLM : "Generate"
+GenNode --> LLM : "Generate initial"
+CritNode --> LLM : "Generate critique"
+RefNode --> LLM : "Generate refinement"
+
+' ============================================
+' RELATIONSHIPS - LAYER 5 INTERNAL
+' ============================================
+Model_IN --> ModelInit
+ModelInit --> LoRAManager : "Base model"
+AdapterLoader --> AdapterMerger
+AdapterMerger --> DeviceManager
+DeviceManager --> Tokenizer
+Tokenizer --> Model_OUT
+
+LLM_IN --> Tokenizer : "Tokenize"
+Tokenizer --> BaseModel : "Token IDs"
+BaseModel --> LoRAAdapters : "Forward pass"
+LoRAAdapters --> GenEngine : "Logits"
+GenEngine --> LLM_OUT : "Generated tokens"
+
+' ============================================
+' RELATIONSHIPS - LAYER 6 INTERNAL
+' ============================================
+Data_IN --> CustomDataset
+Data_IN --> CodeXGlueDataset
+CustomDataset --> DataPreprocessor
+CodeXGlueDataset --> DataPreprocessor
+DataPreprocessor --> SplitManager
+CodeCleaner --> DataPreprocessor
+SummaryNorm --> DataPreprocessor
+StructPromptGen --> DataPreprocessor
+SplitManager --> Data_OUT
+
+Train_IN --> TrainLoop
+BatchGen --> LossComp
+LossComp --> BackwardPass
+BackwardPass --> Optimizer
+Optimizer --> CheckpointManager
+CheckpointManager --> MetricsLogger
+ModelSaver --> Checkpoints
+BestTracker --> Checkpoints
+MetricsLogger --> Train_OUT
+
+Eval_IN --> BLEUCalc
+Eval_IN --> ROUGECalc
+Eval_IN --> METEORCalc
+Eval_IN --> BERTScoreCalc
+Eval_IN --> DepCov
+Eval_IN --> StructAcc
+BLEUCalc --> Eval_OUT
+ROUGECalc --> Eval_OUT
+METEORCalc --> Eval_OUT
+BERTScoreCalc --> Eval_OUT
+DepCov --> Eval_OUT
+StructAcc --> Eval_OUT
+
+TrainDatasets --> DatasetLoader
+Trainer --> Checkpoints
+
+' ============================================
+' RELATIONSHIPS - CROSS-LAYER
+' ============================================
+VizEngine --> GraphViz : "Request visualizations"
+Orchestrator --> ModelLoader : "Load model"
+ModelLoader --> LLM : "Provide model"
+Trainer --> LLM : "Fine-tune"
+DatasetLoader --> Trainer : "Provide data"
+EvalMetrics --> MetricsLogger : "Log metrics"
+
+' ============================================
+' LEGEND
+' ============================================
+legend right
+    |= Layer |= Color |= Purpose |
+    | Presentation | Light Green | User Interface |
+    | Application Logic | Light Blue | Core Workflow |
+    | Structural Analysis | Light Orange | Graph Construction |
+    | Retrieval System | Light Purple | RAG & Similarity Search |
+    | Model Infrastructure | Light Pink | LLM & Inference |
+    | Data & Training | Light Teal | Training & Evaluation |
+    
+    **Key Components:**
+    • **Reflective Agent**: LangGraph-based iterative refinement
+    • **Repository Graph**: NetworkX call graph with cross-file resolution
+    • **Multi-View Analysis**: AST + CFG + PDG + Call Graph
+    • **RAG System**: FAISS + CodeBERT for few-shot learning
+    • **Gemma-2b**: Fine-tuned with LoRA adapters
+    
+    **Data Flow:**
+    User → UI → Pipeline/Agent → Structural Analysis → 
+    RAG → LLM → Summary → UI
+endlegend
+
+@enduml
