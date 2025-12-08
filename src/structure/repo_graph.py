@@ -343,12 +343,28 @@ class RepoGraphBuilder:
             doc = data.get("docstring")
             doc_summary = doc.split('\n')[0] if doc else "No docstring"
             
-            lines.append(f"  - Function '{n}' (Relevance: {total:.1f}): {doc_summary}")
+            file_path = data.get("file_path", "")
+            file_name = os.path.basename(file_path) if file_path else "unknown file"
+
+            lines.append(f"  - Function '{n}' from '{file_name}' (Relevance: {total:.1f}): {doc_summary}")
             lines.append(f"    Reason: {breakdown}")
 
             # Maybe show signature?
             meta = data.get("metadata", {})
             args = ", ".join([a['name'] for a in meta.get("args", [])])
             lines.append(f"    Signature: def {n.split('.')[-1]}({args})")
+
+        # List callers (Predecessors)
+        try:
+            predecessors = list(self.graph.predecessors(node_name))
+            if predecessors:
+                lines.append("  - Called by:")
+                for pred in predecessors:
+                    data = self.graph.nodes[pred]
+                    file_path = data.get("file_path", "")
+                    file_name = os.path.basename(file_path) if file_path else "unknown file"
+                    lines.append(f"    - Function '{pred}' from '{file_name}'")
+        except Exception as e:
+            logger.warning(f"Error getting predecessors for {node_name}: {e}")
 
         return "\n".join(lines)

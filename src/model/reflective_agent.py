@@ -2,6 +2,7 @@ from typing import TypedDict, List, Dict, Any, Optional
 import logging
 import json
 import re
+import os
 from langgraph.graph import StateGraph, END
 
 # Configure logging
@@ -201,7 +202,11 @@ class ReflectiveAgent:
                 doc = node_data.get("docstring", "No docstring")
                 sig = node_data.get("metadata", {}).get("args", [])
                 args = ", ".join([a['name'] for a in sig])
-                new_context_lines.append(f"  - Function '{target}': {doc}")
+
+                file_path = node_data.get("file_path", "")
+                file_name = os.path.basename(file_path) if file_path else "unknown file"
+
+                new_context_lines.append(f"  - Function '{target}' from '{file_name}': {doc}")
                 new_context_lines.append(f"    Signature: def {target}({args})")
             else:
                 new_context_lines.append(f"  - Function '{target}': Not found in repository.")
