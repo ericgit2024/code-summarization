@@ -179,14 +179,27 @@ def get_cfg(code):
 
         for block in all_blocks:
             cfg_text.append(f"Block {block.id}:")
+            
+            # Format statements with proper indentation
             for statement in block.statements:
-                cfg_text.append(f"  {node_to_code(statement)}")
+                stmt_code = node_to_code(statement)
+                # Handle multi-line statements
+                if '\n' in stmt_code:
+                    lines = stmt_code.split('\n')
+                    for line in lines:
+                        cfg_text.append(f"  {line}")
+                else:
+                    cfg_text.append(f"  {stmt_code}")
 
+            # Add exit information
             if block.exits:
                 exits = ", ".join([str(e.target.id) for e in block.exits])
-                cfg_text.append(f"  Exits to: {exits}")
+                cfg_text.append(f"  → Exits to: {exits}")
+            
+            # Add blank line between blocks for readability
+            cfg_text.append("")
 
-        return "\\n".join(cfg_text)
+        return "\n".join(cfg_text)
 
     except Exception as e:
         return f"Error generating CFG: {e}"
@@ -204,6 +217,7 @@ def get_pdg(code):
 
         for func_name, func_cfg in cfg.functioncfgs.items():
             pdg_output.append(f"Function: {func_name}")
+            pdg_output.append("=" * 60)
             
             blocks = list(func_cfg.own_blocks())
             blocks.sort(key=lambda b: b.id)
@@ -234,19 +248,29 @@ def get_pdg(code):
                     node_dependencies[dest]['data'].append(f"{src}({var})")
             
             for block in blocks:
-                pdg_output.append(f"  Node {block.id}:")
-                for stmt in block.statements:
-                    pdg_output.append(f"    {node_to_code(stmt)}")
+                pdg_output.append(f"\nNode {block.id}:")
                 
+                # Format statements with proper indentation
+                for stmt in block.statements:
+                    stmt_code = node_to_code(stmt)
+                    # Handle multi-line statements
+                    if '\n' in stmt_code:
+                        lines = stmt_code.split('\n')
+                        for line in lines:
+                            pdg_output.append(f"  {line}")
+                    else:
+                        pdg_output.append(f"  {stmt_code}")
+                
+                # Add dependencies with clear labels
                 deps = node_dependencies[block.id]
                 if deps['control']:
-                    pdg_output.append(f"    Control Dependent on: {', '.join(map(str, deps['control']))}")
+                    pdg_output.append(f"  ├─ Control Dependencies: {', '.join(map(str, deps['control']))}")
                 if deps['data']:
-                    pdg_output.append(f"    Data Dependent on: {', '.join(deps['data'])}")
+                    pdg_output.append(f"  └─ Data Dependencies: {', '.join(deps['data'])}")
             
             pdg_output.append("")
 
-        return "\\n".join(pdg_output)
+        return "\n".join(pdg_output)
 
     except Exception as e:
         return f"Error generating PDG: {e}"
