@@ -83,6 +83,29 @@ if mode == "Upload Repo Dump":
                         else:
                             st.warning("No summary was generated.")
                         
+                        # Show Structural Prompts (LLM Input)
+                        if hasattr(pipeline, 'last_structural_prompts') and pipeline.last_structural_prompts:
+                            with st.expander("🔍 Structural Prompts (LLM Input)", expanded=False):
+                                st.markdown("**These are the structural representations provided to the LLM model:**")
+                                
+                                tab1, tab2, tab3, tab4 = st.tabs(["AST", "CFG", "PDG", "Call Graph"])
+                                
+                                with tab1:
+                                    st.markdown("**Abstract Syntax Tree (AST)**")
+                                    st.text(pipeline.last_structural_prompts.get("ast", "Not available"))
+                                
+                                with tab2:
+                                    st.markdown("**Control Flow Graph (CFG)**")
+                                    st.text(pipeline.last_structural_prompts.get("cfg", "Not available"))
+                                
+                                with tab3:
+                                    st.markdown("**Program Dependence Graph (PDG)**")
+                                    st.text(pipeline.last_structural_prompts.get("pdg", "Not available"))
+                                
+                                with tab4:
+                                    st.markdown("**Call Graph**")
+                                    st.text(pipeline.last_structural_prompts.get("call_graph", "Not available"))
+                        
                         # Show Context (Collapsed)
                         context = pipeline.repo_graph.get_context_text(target_func)
                         with st.expander("Debug: View Repository Context"):

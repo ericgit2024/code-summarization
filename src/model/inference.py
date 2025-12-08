@@ -67,6 +67,9 @@ class InferencePipeline:
 
         # Initialize Reflective Agent
         self.agent = ReflectiveAgent(self)
+        
+        # Store last structural prompts for UI display
+        self.last_structural_prompts = {}
 
     def build_repo_graph(self, path):
         """Builds the repository graph from a directory or file."""
@@ -180,7 +183,15 @@ class InferencePipeline:
             except Exception as e:
                 print(f"Retrieval failed: {e}")
 
-        # 2. Construct Hierarchical Prompt
+        # 2. Capture Structural Prompts for UI Display
+        self.last_structural_prompts = {
+            "ast": get_structural_prompt(code),
+            "cfg": get_cfg(code),
+            "pdg": get_pdg(code),
+            "call_graph": get_call_graph(code)
+        }
+
+        # 3. Construct Hierarchical Prompt
         full_prompt = self.construct_hierarchical_prompt(
             code,
             metadata,
