@@ -56,13 +56,16 @@ def compute_control_dependencies(cfg_graph, entry_node):
         for u, frontier in dom_frontiers.items():
             for v in frontier:
                 if u != virtual_exit and v != virtual_exit:
+                    # u dominates a predecessor of v in R-CFG, but not v itself.
+                    # This means v is control dependent on u.
+                    # So u is the controller, v is the dependent.
                     cd_edges.append((u, v))
         return cd_edges
     except Exception as e:
         print(f"Error computing control dependencies: {e}")
         return []
 
-def compute_data_dependencies(cfg_blocks, cfg_graph):
+def compute_data_dependencies(cfg_blocks, cfg_graph, func_args=None):
     """
     Computes data dependencies using Reaching Definitions analysis.
     """
@@ -70,12 +73,23 @@ def compute_data_dependencies(cfg_blocks, cfg_graph):
     block_defs = {}
     block_uses = {}
     
+    # Identify entry block to inject arguments as definitions
+    entry_block_id = None
+    if cfg_blocks:
+        entry_block_id = sorted(cfg_blocks, key=lambda b: b.id)[0].id
+
     for block in cfg_blocks:
         bid = block.id
         gen[bid] = set()
         b_defs = set()
         b_uses = set()
         
+        # Inject function arguments as definitions in the entry block
+        if bid == entry_block_id and func_args:
+            for arg in func_args:
+                b_defs.add(arg)
+                gen[bid].add((arg, bid))
+
         for stmt in block.statements:
             if isinstance(stmt, ast.AST):
                 d, u = get_defs_uses(stmt)
@@ -202,6 +216,18 @@ def get_pdg(code):
         
         pdg_output = []
 
+        # Pre-process AST to map function names to their arguments
+        # This handles top-level functions which py2cfg reliably detects.
+        func_args_map = {}
+        try:
+            tree = ast.parse(code)
+            for node in ast.walk(tree):
+                if isinstance(node, ast.FunctionDef):
+                    func_args_map[node.name] = [arg.arg for arg in node.args.args]
+        except Exception as e:
+            # Fallback if AST parsing fails
+            pass
+
         for func_name, func_cfg in cfg.functioncfgs.items():
             pdg_output.append(f"Function: {func_name}")
             
@@ -220,14 +246,19 @@ def get_pdg(code):
                 for exit in block.exits:
                     nx_graph.add_edge(block.id, exit.target.id)
             
+            # Retrieve arguments for this function
+            func_args = func_args_map.get(func_name, [])
+
             cd_edges = compute_control_dependencies(nx_graph, entry_block_id)
-            dd_edges = compute_data_dependencies(blocks, nx_graph)
+            dd_edges = compute_data_dependencies(blocks, nx_graph, func_args)
             
             node_dependencies = {b.id: {'control': [], 'data': []} for b in blocks}
             
-            for src, dest in cd_edges:
-                if dest in node_dependencies:
-                    node_dependencies[dest]['control'].append(src)
+            for controller, dependent in cd_edges:
+                # Correct Logic: "dependent" depends on "controller"
+                # Store it as: node_dependencies[dependent]['control'].append(controller)
+                if dependent in node_dependencies:
+                    node_dependencies[dependent]['control'].append(controller)
             
             for src, dest, var in dd_edges:
                 if dest in node_dependencies:
