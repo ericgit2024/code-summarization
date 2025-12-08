@@ -135,6 +135,3 @@ print(summary)
 *   `src/ui/`: Streamlit app (`app.py`) and visualization (`visualization.py`).
 *   `src/utils/`: Helper scripts like metrics (`metrics.py`).
 
-## 10. Known Limitations
-
-*   **PDG Extraction:** The Program Dependence Graph (PDG) extraction is currently a placeholder. Full PDG extraction requires complex static analysis tools which are beyond the scope of this prototype. The system relies primarily on AST and CFG for structural prompting.
