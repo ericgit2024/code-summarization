@@ -66,8 +66,8 @@ class ReflectiveAgent:
              "The output MUST be organized into the following sections using Markdown headers:\n"
              "1. **Overview**: A high-level explanation of what the code does.\n"
              "2. **Detailed Logic**: A step-by-step breakdown of the operations, inputs, and outputs.\n"
-             "3. **Dependency Analysis**: An explanation of how the function interacts with external dependencies (e.g., other functions, classes, or APIs), utilizing the provided 'Dependency Context'.\n\n"
-             "Ensure the content is detailed and thorough."
+             "3. **Dependency Analysis**: An explanation of how the function interacts with external dependencies (e.g., other functions, classes, or APIs), utilizing the provided 'Dependency Context'. Explicitly mention the source file of the dependencies if available (e.g. 'calls function() from filename.py').\n\n"
+             "Ensure the content is detailed and thorough. DO NOT include an 'Examples' section in the output."
         )
         
         summary = self.pipeline.generate_from_code(
@@ -228,7 +228,8 @@ class ReflectiveAgent:
             f"Write an improved summary with these sections:\n"
             f"1. **Overview**: What the code does\n"
             f"2. **Detailed Logic**: Step-by-step explanation\n"
-            f"3. **Dependency Analysis**: How it interacts with other functions\n\n"
+            f"3. **Dependency Analysis**: How it interacts with other functions (include source filenames)\n\n"
+            f"Do NOT include an 'Examples' section.\n\n"
             f"Improved Summary:"
         )
         

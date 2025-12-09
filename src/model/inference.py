@@ -88,7 +88,7 @@ class InferencePipeline:
                  "1. **Overview**: A high-level explanation of what the code does.\n"
                  "2. **Detailed Logic**: A step-by-step breakdown of the operations, inputs, and outputs.\n"
                  "3. **Dependency Analysis**: An explanation of how the function interacts with external dependencies (e.g., other functions, classes, or APIs), utilizing the provided 'Dependency Context'. Explicitly mention the source file of the dependencies if available (e.g. 'calls function() from filename.py').\n\n"
-                 "Ensure the content is detailed and thorough."
+                 "Ensure the content is detailed and thorough. DO NOT include an 'Examples' section in the output."
              )
 
         repo_context = None
@@ -312,15 +312,23 @@ class InferencePipeline:
             sections.append(repo_context)
 
         # 4. Similar Code Patterns (RAG)
+        # We explicitly exclude RAG examples from the prompt to avoid them appearing in the final summary output
+        # as requested by user ("Restrict the example from displaying").
+        # The retrieved items are still used by the model implicitly if we were to embed them differently,
+        # but the current prompt structure appends them directly. To "hide" them from output but use them for context,
+        # we can label them clearly as 'Reference Context Only'.
+        # However, the user specifically asked "Restrict the example from displaying".
+        # This usually means they don't want an "Examples" SECTION in the generated summary.
+        # But including them in the prompt often leads the model to hallucinate an "Examples" section in output.
+        # To be safe and strictly follow "Restrict the example from displaying", we will OMIT them from the prompt entirely
+        # OR format them strictly as "Reference Information - Do Not Include in Output".
+        # Let's try the latter to keep the RAG benefit (logic understanding) while suppressing output.
         if retrieved_items:
-            sections.append("\n### Similar Code Patterns")
-            sections.append("The following code snippets share similar logic or structure:")
-            for i, item in enumerate(retrieved_items):
+             sections.append("\n### Reference Context (Internal Use Only - Do Not Quote or Output)")
+             sections.append("Use the following similar code patterns to understand the logic, but DO NOT include these examples in your generated summary.")
+             for i, item in enumerate(retrieved_items):
                 meta = item["meta"]
-                sections.append(f"\n**Example {i+1}: {meta.get('name', 'snippet')}**")
-                doc = meta.get('docstring')
-                if doc:
-                    sections.append(f"Docstring: {doc.splitlines()[0]}...")
+                sections.append(f"\n**Reference Pattern {i+1}**")
                 sections.append(f"Code:\n```python\n{item['code']}\n```")
 
         # 5. Code to Summarize
