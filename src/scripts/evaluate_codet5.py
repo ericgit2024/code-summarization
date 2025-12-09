@@ -13,7 +13,7 @@ Usage:
 import json
 import argparse
 import os
-from src.model.codet5_inference import codet5Inference
+from src.model.codet5_inference import CodeT5Inference
 from src.evaluation.metrics import CodeSummaryEvaluator
 import logging
 
@@ -63,7 +63,7 @@ def evaluate_codet5(use_finetuned=False, limit=None):
     # Initialize inference pipeline
     logger.info(f"Initializing codet5 inference pipeline ({mode_name})...")
     try:
-        pipeline = codet5Inference(use_finetuned=use_finetuned)
+        pipeline = CodeT5Inference(use_finetuned=use_finetuned)
     except Exception as e:
         logger.error(f"Failed to initialize pipeline: {e}")
         return None
