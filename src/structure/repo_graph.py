@@ -331,6 +331,9 @@ class RepoGraphBuilder:
 
         lines = []
         lines.append(f"Context for function '{node_name}':")
+        lines.append("")
+        lines.append("**IMPORTANT**: When mentioning these functions in your summary, ALWAYS include their source file using the format: 'function_name() from filename.py'")
+        lines.append("")
         
         # List selected dependencies with scores
         for n in subgraph.nodes():
@@ -346,12 +349,14 @@ class RepoGraphBuilder:
             file_path = data.get("file_path", "unknown file")
             filename = os.path.basename(file_path)
 
-            lines.append(f"  - Function '{n}' from '{filename}' (Relevance: {total:.1f}): {doc_summary}")
+            lines.append(f"  - **{n}()** from **{filename}** (Relevance: {total:.1f})")
+            lines.append(f"    Description: {doc_summary}")
             lines.append(f"    Reason: {breakdown}")
 
             # Maybe show signature?
             meta = data.get("metadata", {})
             args = ", ".join([a['name'] for a in meta.get("args", [])])
             lines.append(f"    Signature: def {n.split('.')[-1]}({args})")
+            lines.append("")
 
         return "\n".join(lines)

@@ -1,12 +1,13 @@
 from src.structure.ast_utils import get_structural_prompt
-from src.structure.graph_utils import get_cfg, get_pdg, get_call_graph
+from src.structure.graph_utils import get_cfg, get_pdg, get_call_graph, get_call_graph_with_files
 
-def construct_structural_prompt(code_string):
+def construct_structural_prompt(code_string, repo_graph=None):
     """
     Constructs the full structural prompt by fusing AST, CFG, PDG, and Call Graph information.
 
     Args:
         code_string (str): The python code.
+        repo_graph: Optional RepoGraphBuilder instance for file-aware call graph.
 
     Returns:
         str: A hierarchical text representation of the code structure.
@@ -14,7 +15,12 @@ def construct_structural_prompt(code_string):
     ast_prompt = get_structural_prompt(code_string)
     cfg_prompt = get_cfg(code_string)
     pdg_prompt = get_pdg(code_string)
-    cg_prompt = get_call_graph(code_string)
+    
+    # Use enhanced call graph if repo_graph is available
+    if repo_graph:
+        cg_prompt = get_call_graph_with_files(code_string, repo_graph)
+    else:
+        cg_prompt = get_call_graph(code_string)
 
     return f"AST:\n{ast_prompt}\n\nCFG:\n{cfg_prompt}\n\nPDG:\n{pdg_prompt}\n\nCall Graph:\n{cg_prompt}"
 

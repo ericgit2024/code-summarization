@@ -337,3 +337,82 @@ def get_call_graph(code):
 
     except Exception as e:
         return f"Error generating Call Graph: {e}"
+
+
+def get_call_graph_with_files(code, repo_graph=None):
+    """
+    Generates a Call Graph with file source information.
+    
+    If repo_graph is provided, looks up the file source for each called function
+    and includes it in the output (e.g., "calls foo from utils.py").
+    
+    Args:
+        code: Python code string to analyze
+        repo_graph: Optional RepoGraphBuilder instance for file lookup
+        
+    Returns:
+        str: Call graph with file information when available
+    """
+    try:
+        calls = extract_call_graph_edges(code)
+        call_graph = []
+
+        for func, func_calls in calls.items():
+            if func_calls:
+                unique_calls = sorted(list(set(func_calls)))
+                
+                # If repo_graph is available, enhance with file information
+                if repo_graph and hasattr(repo_graph, 'graph'):
+                    enhanced_calls = []
+                    for called_func in unique_calls:
+                        # Try to find the function in the repo graph
+                        file_info = _find_function_file(called_func, repo_graph)
+                        
+                        if file_info:
+                            enhanced_calls.append(f"{called_func} (from {file_info})")
+                        else:
+                            # Function not found in repo (might be built-in or external)
+                            enhanced_calls.append(called_func)
+                    
+                    call_graph.append(f"Function {func} calls: {', '.join(enhanced_calls)}")
+                else:
+                    # No repo_graph, use basic format
+                    call_graph.append(f"Function {func} calls: {', '.join(unique_calls)}")
+        
+        if not call_graph:
+            return "No function calls found."
+
+        return "\n".join(call_graph)
+
+    except Exception as e:
+        return f"Error generating Call Graph: {e}"
+
+
+def _find_function_file(func_name, repo_graph):
+    """
+    Helper function to find the file source of a function in the repo graph.
+    
+    Args:
+        func_name: Name of the function to find
+        repo_graph: RepoGraphBuilder instance
+        
+    Returns:
+        str: Filename (basename) if found, None otherwise
+    """
+    import os
+    
+    # Try direct match first
+    if func_name in repo_graph.graph:
+        file_path = repo_graph.graph.nodes[func_name].get('file_path', '')
+        if file_path:
+            return os.path.basename(file_path)
+    
+    # Try partial matches (e.g., "method" might be "Class.method")
+    for node in repo_graph.graph.nodes():
+        if node.endswith(f".{func_name}") or node == func_name:
+            file_path = repo_graph.graph.nodes[node].get('file_path', '')
+            if file_path:
+                return os.path.basename(file_path)
+    
+    return None
+

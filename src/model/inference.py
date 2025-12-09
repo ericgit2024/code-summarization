@@ -106,7 +106,7 @@ class InferencePipeline:
                  "The output MUST be organized into the following sections using Markdown headers:\n"
                  "1. **Overview**: A high-level explanation of what the code does.\n"
                  "2. **Detailed Logic**: A step-by-step breakdown of the operations, inputs, and outputs.\n"
-                 "3. **Dependency Analysis**: An explanation of how the function interacts with external dependencies (e.g., other functions, classes, or APIs), utilizing the provided 'Dependency Context'. Explicitly mention the source file of the dependencies if available (e.g. 'calls function() from filename.py').\n\n"
+                 "3. **Dependency Analysis**: An explanation of how the function interacts with external dependencies (e.g., other functions, classes, or APIs), utilizing the provided 'Dependency Context'. **CRITICAL**: You MUST explicitly mention the source file for each dependency using the format 'function_name() from filename.py' (e.g., 'calls lcm() from factorization.py'). This is MANDATORY when file information is provided.\n\n"
                  "Ensure the content is detailed and thorough."
              )
 
@@ -203,11 +203,18 @@ class InferencePipeline:
                 print(f"Retrieval failed: {e}")
 
         # 2. Capture Structural Prompts for UI Display
+        # Pass repo_graph to get file-aware call graph
+        from src.data.prompt import construct_structural_prompt
+        structural_prompt = construct_structural_prompt(code, repo_graph=self.repo_graph)
+        
+        # Store for use in hierarchical prompt
+        self._current_structural_prompt = structural_prompt
+        
         self.last_structural_prompts = {
             "ast": get_structural_prompt(code),
             "cfg": get_cfg(code),
             "pdg": get_pdg(code),
-            "call_graph": get_call_graph(code)
+            "call_graph": structural_prompt.split("Call Graph:\n")[-1] if "Call Graph:" in structural_prompt else "N/A"
         }
 
         # 3. Construct Hierarchical Prompt
@@ -302,6 +309,7 @@ class InferencePipeline:
     def construct_hierarchical_prompt(self, code, metadata, repo_context, retrieved_items, instruction):
         """
         Constructs a structured, hierarchical prompt.
+        Note: Structural prompt is now constructed in generate_from_code with repo_graph support.
         """
         sections = []
 
@@ -327,8 +335,14 @@ class InferencePipeline:
             sections.append("\n### Dependency Context (Call Graph)")
             sections.append("The following functions are relevant dependencies identified in the repository:")
             sections.append(repo_context)
+        
+        # 4. Structural Analysis (now includes file-aware call graph)
+        # This is passed via the structural_prompt constructed earlier
+        if hasattr(self, '_current_structural_prompt'):
+            sections.append("\n### Structural Analysis (AST/CFG/PDG/Call Graph)")
+            sections.append(self._current_structural_prompt)
 
-        # 4. Similar Code Patterns (RAG)
+        # 5. Similar Code Patterns (RAG)
         if retrieved_items:
             sections.append("\n### Similar Code Patterns")
             sections.append("The following code snippets share similar logic or structure:")
@@ -340,11 +354,11 @@ class InferencePipeline:
                     sections.append(f"Docstring: {doc.splitlines()[0]}...")
                 sections.append(f"Code:\n```python\n{item['code']}\n```")
 
-        # 5. Code to Summarize
+        # 6. Code to Summarize
         sections.append("\n### Code to Summarize")
         sections.append(f"```python\n{code}\n```")
 
-        # 6. Response Request
+        # 7. Response Request
         sections.append("\n### Summary")
 
         return "\n".join(sections)
