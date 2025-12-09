@@ -2,7 +2,7 @@
 GraphCodeBERT Training Script (Fast Mode)
 
 Trains GraphCodeBERT on a small subset of the dataset for quick baseline comparison.
-This is optional - we can also use zero-shot evaluation only.
+Uses Masked Language Modeling (MLM) since GraphCodeBERT is an encoder-only model.
 
 Usage:
     python -m src.model.train_graphcodebert --epochs 1 --limit 50
@@ -10,7 +10,7 @@ Usage:
 
 import argparse
 import torch
-from transformers import TrainingArguments, Trainer, DataCollatorForSeq2Seq
+from transformers import TrainingArguments, Trainer, DataCollatorForLanguageModeling, RobertaForMaskedLM
 from src.model.graphcodebert_loader import load_graphcodebert
 from src.data.dataset import load_and_process_dataset
 import os
@@ -24,7 +24,7 @@ def train_graphcodebert(
     dataset_name="custom"
 ):
     """
-    Train GraphCodeBERT on a small subset of data.
+    Train GraphCodeBERT on a small subset of data using MLM.
     
     Args:
         output_dir: Directory to save the fine-tuned model
@@ -34,15 +34,22 @@ def train_graphcodebert(
         dataset_name: Dataset to use ("custom" or "codexglue")
     """
     print("="*60)
-    print("GraphCodeBERT Fast Training")
+    print("GraphCodeBERT Fast Training (MLM)")
     print("="*60)
     print(f"Training on {limit} examples for {num_train_epochs} epoch(s)")
-    print(f"This should take approximately 10-15 minutes")
+    print("Using Masked Language Modeling approach")
     print("="*60)
     
-    # Load model and tokenizer
-    print("\n1. Loading GraphCodeBERT model...")
-    model, tokenizer = load_graphcodebert(use_finetuned=False)
+    # Load model with MLM head
+    print("\n1. Loading GraphCodeBERT model with MLM head...")
+    from transformers import RobertaTokenizer
+    
+    tokenizer = RobertaTokenizer.from_pretrained("microsoft/graphcodebert-base")
+    model = RobertaForMaskedLM.from_pretrained("microsoft/graphcodebert-base")
+    
+    print(f"Model loaded successfully!")
+    print(f"Model type: {type(model).__name__}")
+    print(f"Number of parameters: {model.num_parameters():,}")
     
     # Load dataset
     print(f"\n2. Loading dataset: {dataset_name}")
@@ -55,41 +62,25 @@ def train_graphcodebert(
     
     print(f"   Training set size: {len(dataset)}")
     
-    # Format prompts
-    def format_prompt(example):
-        """Create simple prompt for GraphCodeBERT."""
-        # Simple format: code -> summary
-        prompt = f"Summarize the following code:\n\n{example['code']}\n\nSummary:"
-        target = example['summary']
-        
-        return {
-            "input_text": prompt,
-            "target_text": target
-        }
+    # Format for MLM - just use code and summary together
+    def format_for_mlm(example):
+        """Create text for masked language modeling."""
+        # Combine code and summary for MLM training
+        text = f"Code: {example['code']}\nSummary: {example['summary']}"
+        return {"text": text}
     
-    print("\n3. Formatting prompts...")
-    dataset = dataset.map(format_prompt)
+    print("\n3. Formatting for MLM...")
+    dataset = dataset.map(format_for_mlm)
     
     # Tokenize
     def tokenize_function(examples):
-        """Tokenize inputs and targets."""
-        model_inputs = tokenizer(
-            examples["input_text"],
+        """Tokenize inputs for MLM."""
+        return tokenizer(
+            examples["text"],
             max_length=512,
             truncation=True,
             padding="max_length"
         )
-        
-        # Tokenize targets
-        labels = tokenizer(
-            examples["target_text"],
-            max_length=128,
-            truncation=True,
-            padding="max_length"
-        )
-        
-        model_inputs["labels"] = labels["input_ids"]
-        return model_inputs
     
     print("4. Tokenizing dataset...")
     tokenized_dataset = dataset.map(tokenize_function, batched=True)
@@ -99,7 +90,7 @@ def train_graphcodebert(
     training_args = TrainingArguments(
         output_dir=output_dir,
         num_train_epochs=num_train_epochs,
-        per_device_train_batch_size=1,
+        per_device_train_batch_size=2,  # Increased since we're not doing seq2seq
         gradient_accumulation_steps=4,
         learning_rate=learning_rate,
         warmup_steps=10,
@@ -110,11 +101,11 @@ def train_graphcodebert(
         report_to="none",  # Disable wandb/tensorboard
     )
     
-    # Data collator
-    data_collator = DataCollatorForSeq2Seq(
+    # Data collator for MLM
+    data_collator = DataCollatorForLanguageModeling(
         tokenizer=tokenizer,
-        model=model,
-        padding=True
+        mlm=True,
+        mlm_probability=0.15  # Standard MLM masking probability
     )
     
     # Trainer
@@ -139,10 +130,12 @@ def train_graphcodebert(
     print("="*60)
     print(f"✅ Training complete! Model saved to: {output_dir}")
     print("="*60)
+    print("\nNote: This model was trained with MLM (Masked Language Modeling).")
+    print("For inference, you'll need to use it differently than a seq2seq model.")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Train GraphCodeBERT (fast mode)")
+    parser = argparse.ArgumentParser(description="Train GraphCodeBERT (fast mode with MLM)")
     parser.add_argument('--output_dir', default='graphcodebert_finetuned',
                        help='Output directory for fine-tuned model')
     parser.add_argument('--epochs', type=int, default=1,
