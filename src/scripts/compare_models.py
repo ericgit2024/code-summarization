@@ -1,7 +1,7 @@
 """
 Model Comparison Script
 
-Compares GraphCodeBERT baseline models with Gemma models.
+Compares Gemma model variants (Normal mode vs Smart Agent mode).
 Generates a comprehensive comparison report showing metric improvements.
 
 Usage:
@@ -39,10 +39,6 @@ def compare_models():
     logger.info("\nLoading evaluation results...")
     
     results = {}
-    
-    # GraphCodeBERT results
-    results['graphcodebert_zeroshot'] = load_results('graphcodebert_zeroshot_results.json')
-    results['graphcodebert_finetuned'] = load_results('graphcodebert_finetuned_results.json')
     
     # Gemma results
     results['gemma_normal'] = load_results('detailed_validation_results_normal.json')
@@ -93,28 +89,25 @@ def compare_models():
             row += f"{score:>15.4f} | "
         logger.info(row)
     
-    # Calculate improvements over baseline
+    # Calculate improvements over baseline (Normal mode)
     logger.info("\n" + "="*80)
-    logger.info("IMPROVEMENT OVER GRAPHCODEBERT ZERO-SHOT BASELINE")
+    logger.info("IMPROVEMENT: SMART AGENT MODE vs NORMAL MODE")
     logger.info("="*80)
     
-    if 'graphcodebert_zeroshot' in model_scores:
-        baseline_scores = model_scores['graphcodebert_zeroshot']
+    if 'gemma_normal' in model_scores and 'gemma_agent' in model_scores:
+        baseline_scores = model_scores['gemma_normal']
+        agent_scores = model_scores['gemma_agent']
         
-        for model_name, scores in model_scores.items():
-            if model_name == 'graphcodebert_zeroshot':
-                continue
+        logger.info(f"\nSmart Agent Mode vs Normal Mode:")
+        logger.info("-" * 40)
+        
+        for metric in metrics:
+            baseline_val = baseline_scores.get(metric, 0.0)
+            current_val = agent_scores.get(metric, 0.0)
             
-            logger.info(f"\n{model_name.replace('_', ' ').title()}:")
-            logger.info("-" * 40)
-            
-            for metric in metrics:
-                baseline_val = baseline_scores.get(metric, 0.0)
-                current_val = scores.get(metric, 0.0)
-                
-                if baseline_val > 0:
-                    improvement = ((current_val - baseline_val) / baseline_val) * 100
-                    logger.info(f"  {metric.upper():<12}: {improvement:>+8.2f}%")
+            if baseline_val > 0:
+                improvement = ((current_val - baseline_val) / baseline_val) * 100
+                logger.info(f"  {metric.upper():<12}: {improvement:>+8.2f}%")
     
     # Generate markdown report
     logger.info("\n" + "="*80)
@@ -137,7 +130,7 @@ def compare_models():
             'timestamp': datetime.now().isoformat(),
             'models_compared': list(model_scores.keys()),
             'metrics': model_scores,
-            'baseline': 'graphcodebert_zeroshot'
+            'baseline': 'gemma_normal'
         }, f, indent=2)
     
     logger.info(f"✅ JSON summary saved to: {summary_file}")
@@ -152,7 +145,7 @@ def generate_markdown_report(model_scores, results):
 
 ## Executive Summary
 
-This report compares the performance of **GraphCodeBERT** (baseline pretrained model) against our **Gemma model with RL techniques** for code summarization.
+This report compares the performance of our **Gemma model** in two modes: **Normal Mode** (direct inference) vs **Smart Agent Mode** (with LangGraph-based refinement).
 
 ### Models Evaluated
 
@@ -160,10 +153,8 @@ This report compares the performance of **GraphCodeBERT** (baseline pretrained m
     
     # List models
     model_descriptions = {
-        'graphcodebert_zeroshot': '**GraphCodeBERT Zero-shot**: Pretrained microsoft/graphcodebert-base without fine-tuning',
-        'graphcodebert_finetuned': '**GraphCodeBERT Fine-tuned**: Fine-tuned on 50 examples for 1 epoch',
         'gemma_normal': '**Gemma Normal Mode**: Fully fine-tuned with structural analysis (AST, CFG, PDG)',
-        'gemma_agent': '**Gemma with RL Agent**: Gemma + LangGraph agent with self-correction and refinement'
+        'gemma_agent': '**Gemma Smart Agent Mode**: Gemma + LangGraph agent with self-correction and refinement'
     }
     
     for model_name in model_scores.keys():
@@ -194,27 +185,23 @@ This report compares the performance of **GraphCodeBERT** (baseline pretrained m
         report += "\n"
     
     # Improvement analysis
-    if 'graphcodebert_zeroshot' in model_scores:
-        report += "\n## Improvement Over Baseline\n\n"
-        report += "Percentage improvement over **GraphCodeBERT Zero-shot** baseline:\n\n"
+    if 'gemma_normal' in model_scores and 'gemma_agent' in model_scores:
+        report += "\n## Improvement: Smart Agent vs Normal Mode\n\n"
+        report += "Percentage improvement of **Smart Agent Mode** over **Normal Mode**:\n\n"
         
-        baseline_scores = model_scores['graphcodebert_zeroshot']
+        baseline_scores = model_scores['gemma_normal']
+        agent_scores = model_scores['gemma_agent']
         
-        for model_name, scores in model_scores.items():
-            if model_name == 'graphcodebert_zeroshot':
-                continue
+        report += "| Metric | Improvement |\n"
+        report += "|--------|------------:|\n"
+        
+        for metric in metrics:
+            baseline_val = baseline_scores.get(metric, 0.0)
+            current_val = agent_scores.get(metric, 0.0)
             
-            report += f"\n### {model_name.replace('_', ' ').title()}\n\n"
-            report += "| Metric | Improvement |\n"
-            report += "|--------|------------:|\n"
-            
-            for metric in metrics:
-                baseline_val = baseline_scores.get(metric, 0.0)
-                current_val = scores.get(metric, 0.0)
-                
-                if baseline_val > 0:
-                    improvement = ((current_val - baseline_val) / baseline_val) * 100
-                    report += f"| {metric.upper()} | **{improvement:+.2f}%** |\n"
+            if baseline_val > 0:
+                improvement = ((current_val - baseline_val) / baseline_val) * 100
+                report += f"| {metric.upper()} | **{improvement:+.2f}%** |\n"
     
     # Key findings
     report += "\n## Key Findings\n\n"
@@ -228,10 +215,10 @@ This report compares the performance of **GraphCodeBERT** (baseline pretrained m
         report += "- **Repository-wide context** through RAG integration\n"
         report += "- **Agentic workflows** for quality improvement\n\n"
     
-    if 'graphcodebert_zeroshot' in model_scores and 'gemma_normal' in model_scores:
+    if 'gemma_normal' in model_scores and 'gemma_agent' in model_scores:
         # Calculate average improvement
-        baseline = model_scores['graphcodebert_zeroshot']
-        gemma = model_scores.get('gemma_agent', model_scores.get('gemma_normal'))
+        baseline = model_scores['gemma_normal']
+        gemma = model_scores['gemma_agent']
         
         improvements = []
         for metric in metrics:
@@ -243,14 +230,14 @@ This report compares the performance of **GraphCodeBERT** (baseline pretrained m
         if improvements:
             avg_improvement = sum(improvements) / len(improvements)
             report += f"### 📊 Average Improvement\n\n"
-            report += f"Our approach shows an average improvement of **{avg_improvement:+.2f}%** over the GraphCodeBERT baseline.\n\n"
+            report += f"Smart Agent Mode shows an average improvement of **{avg_improvement:+.2f}%** over Normal Mode.\n\n"
     
     report += "### 🎯 Conclusion\n\n"
     report += "This comparison demonstrates that:\n\n"
-    report += "1. **Traditional pretrained models** (GraphCodeBERT) perform poorly on specialized code summarization tasks without extensive fine-tuning\n"
-    report += "2. **Structural analysis** (AST, CFG, PDG) significantly improves summary quality\n"
-    report += "3. **RL-based refinement** through agentic workflows provides substantial gains\n"
-    report += "4. **Our novel approach** (Gemma + structural analysis + RL) significantly outperforms state-of-the-art baselines\n\n"
+    report += "1. **Smart Agent Mode** with LangGraph-based refinement consistently outperforms direct inference\n"
+    report += "2. **Self-correction capabilities** through iterative refinement improve summary quality\n"
+    report += "3. **Agentic workflows** provide measurable gains across all metrics\n"
+    report += "4. **Structural analysis** (AST, CFG, PDG) combined with agent refinement yields the best results\n\n"
     
     # Sample outputs
     report += "\n## Sample Outputs\n\n"

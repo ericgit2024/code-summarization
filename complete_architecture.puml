@@ -1,0 +1,107 @@
+@startuml
+!theme plain
+title NeuroGraph-CodeRAG Architecture
+
+skinparam componentStyle rectangle
+skinparam linetype ortho
+skinparam shadowing false
+skinparam nodesep 100
+skinparam ranksep 100
+
+' ========================================
+' USER INTERFACE
+' ========================================
+component "Streamlit UI" as UI #E3F2FD
+
+' ========================================
+' CORE ORCHESTRATION
+' ========================================
+package "Core System" #FFF3E0 {
+    component "Inference Pipeline" as INFERENCE #FFE0B2
+    component "Reflective Agent" as AGENT #FFE0B2
+}
+
+' ========================================
+' ANALYSIS ENGINE
+' ========================================
+package "Analysis Engine" #E8F5E9 {
+    component "Repository\nGraph" as REPO_GRAPH #C8E6C9
+    
+    component "Structure\nAnalysis" as STRUCTURE #C8E6C9
+}
+
+' ========================================
+' RETRIEVAL & DATA
+' ========================================
+package "Retrieval & Data" #F3E5F5 {
+    component "RAG\nSystem" as RAG #E1BEE7
+    
+    component "Prompt\nBuilder" as PROMPT #E1BEE7
+    
+    database "FAISS\nIndex" as FAISS #E1BEE7
+}
+
+' ========================================
+' MODEL
+' ========================================
+package "Model" #E1F5FE {
+    component "Gemma-2B\n(LoRA)" as GEMMA #81D4FA
+}
+
+' ========================================
+' MAIN FLOW (VERTICAL)
+' ========================================
+UI -down-> INFERENCE : 1. Code
+
+INFERENCE -down-> REPO_GRAPH : 2. Graph
+INFERENCE -down-> STRUCTURE : 3. Features
+
+INFERENCE -down-> RAG : 4. Retrieve
+INFERENCE -down-> PROMPT : 5. Prompt
+
+INFERENCE -down-> GEMMA : 6. Generate
+
+GEMMA -up-> INFERENCE : 7. Summary
+INFERENCE -up-> UI : 8. Display
+
+' ========================================
+' AGENT FLOW (HORIZONTAL)
+' ========================================
+INFERENCE -right-> AGENT : Optional
+AGENT -down-> REPO_GRAPH : Consult
+
+' ========================================
+' INTERNAL (HORIZONTAL)
+' ========================================
+REPO_GRAPH -right-> STRUCTURE : Parse
+
+RAG -right-> FAISS : Query
+PROMPT -left-> RAG : Examples
+
+' ========================================
+' NOTES
+' ========================================
+note right of INFERENCE
+    <b>Orchestration</b>
+    Manages workflow
+    Builds context
+end note
+
+note right of AGENT
+    <b>Self-Correction</b>
+    Generate → Critique
+    Consult → Refine
+end note
+
+note left of STRUCTURE
+    <b>Multi-View</b>
+    AST • CFG
+    PDG • Call Graph
+end note
+
+note right of GEMMA
+    <b>Fine-tuned LLM</b>
+    Context-aware
+end note
+
+@enduml

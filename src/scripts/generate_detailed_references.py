@@ -118,8 +118,6 @@ def main():
                        help='Generation mode: auto (use model), manual (template), convert (finalize)')
     parser.add_argument('--model_path', default='gemma_lora_finetuned',
                        help='Path to trained model (for auto mode)')
-    parser.add_argument('--dataset', default='custom', choices=['custom', 'codexglue'],
-                       help='Dataset to use')
     parser.add_argument('--split', default='validation',
                        help='Dataset split to process')
     parser.add_argument('--output', default='detailed_references.json',
@@ -135,8 +133,8 @@ def main():
         return
     
     # Load dataset
-    print(f"Loading {args.dataset} dataset, split: {args.split}")
-    dataset = load_and_process_dataset(split=args.split, dataset_name=args.dataset)
+    print(f"Loading custom dataset, split: {args.split}")
+    dataset = load_and_process_dataset(split=args.split)
     
     if args.limit:
         dataset = dataset.select(range(min(args.limit, len(dataset))))

@@ -20,6 +20,8 @@ This slide showcases the **major code implementations** of NeuroGraph-CodeRAG, d
 │  6. RAG System (Retrieval-Augmented Generation)             │
 │  7. Reflective Agent (LangGraph Workflow)                   │
 │  8. Inference Pipeline                                      │
+│  9. Evaluation System                                       │
+│  10. Metrics Calculation (BLEU, ROUGE, METEOR, SAS)         │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -547,6 +549,127 @@ Shows: Final prompt with instruction, context, examples, and code
 
 ---
 
+## 🔟 **Evaluation System**
+
+### **File**: `src/scripts/evaluate_system.py`
+
+### **Purpose**
+Comprehensive evaluation framework measuring both standard NLP metrics and structural accuracy.
+
+### **Key Features**
+- ✅ Multi-metric evaluation (BLEU, ROUGE, METEOR, Semantic Similarity)
+- ✅ Structural Accuracy Score (SAS)
+- ✅ Automated evaluation pipeline
+- ✅ Detailed JSON reporting
+
+### **Screenshot Line Numbers**
+
+#### **Screenshot 1: Evaluation Pipeline**
+**Lines: 9-29** (Main evaluation function)
+```
+📸 Capture: Lines 9-29
+Shows: Dataset loading, pipeline initialization, and summary generation
+```
+
+**Key Code Highlights:**
+- **Lines 10-15**: Dataset loading and sample selection
+- **Lines 17-18**: Pipeline initialization with model type
+- **Lines 23-29**: Iterating through samples and generating summaries
+
+#### **Screenshot 2: Metrics Computation**
+**Lines: 31-52** (Metrics calculation and result aggregation)
+```
+📸 Capture: Lines 31-52
+Shows: Computing all metrics including SAS and simulated human scores
+```
+
+**Key Code Highlights:**
+- **Line 32**: Computing all metrics including structural accuracy
+- **Lines 37-38**: Simulated human evaluation (Likert scale)
+- **Lines 40-52**: Result dictionary construction
+
+#### **Screenshot 3: Results Aggregation**
+**Lines: 55-74** (Aggregation and reporting)
+```
+📸 Capture: Lines 55-74
+Shows: Averaging metrics and saving detailed report
+```
+
+**Key Code Highlights:**
+- **Lines 56-60**: Averaging all metrics across samples
+- **Lines 62-67**: Printing comprehensive evaluation report
+- **Lines 72-73**: Saving detailed results to JSON
+
+### **Talking Points**
+- "Evaluates on multiple dimensions: lexical, semantic, and structural"
+- "SAS measures dependency coverage and control flow awareness"
+- "Automated pipeline enables rapid iteration and comparison"
+- "JSON output enables detailed analysis and visualization"
+
+---
+
+## 1️⃣1️⃣ **Metrics Calculation**
+
+### **File**: `src/utils/metrics.py`
+
+### **Purpose**
+Implements comprehensive metric calculation including standard NLP metrics and custom structural accuracy.
+
+### **Key Features**
+- ✅ BLEU, ROUGE, METEOR computation
+- ✅ Semantic similarity using sentence transformers
+- ✅ Structural Accuracy Score (SAS)
+- ✅ Dependency coverage and control flow awareness
+
+### **Screenshot Line Numbers**
+
+#### **Screenshot 1: Compute Metrics Function**
+**Lines: 66-93** (Main compute_metrics function)
+```
+📸 Capture: Lines 66-93
+Shows: Standard NLP metrics calculation (BLEU, ROUGE, METEOR, Semantic Similarity)
+```
+
+**Key Code Highlights:**
+- **Lines 75-77**: Loading evaluation metrics (BLEU, ROUGE, METEOR)
+- **Lines 80-84**: Computing BLEU, ROUGE, and METEOR scores
+- **Lines 87-92**: Semantic similarity using sentence transformers
+
+#### **Screenshot 2: Structural Accuracy Score Calculation**
+**Lines: 9-64** (calculate_structural_accuracy function)
+```
+📸 Capture: Lines 9-64
+Shows: SAS implementation with dependency coverage and control flow awareness
+```
+
+**Key Code Highlights:**
+- **Lines 18**: Weight configuration (60% dependency + 40% control flow)
+- **Lines 21-37**: Dependency coverage analysis
+- **Lines 28-35**: Extracting function calls and checking mentions in summary
+- **Lines 44-58**: Control flow awareness (loops and conditionals)
+
+#### **Screenshot 3: Results Aggregation**
+**Lines: 94-117** (Structural score integration)
+```
+📸 Capture: Lines 94-117
+Shows: Integrating structural accuracy with other metrics
+```
+
+**Key Code Highlights:**
+- **Lines 96-102**: Computing SAS for each code snippet
+- **Lines 104-111**: Building result dictionary with all metrics
+- **Lines 114-115**: Adding average structural accuracy to results
+
+### **Talking Points**
+- "BLEU and ROUGE measure n-gram overlap with reference"
+- "METEOR adds stemming and synonym matching"
+- "Semantic similarity captures meaning beyond word overlap"
+- "SAS is our novel metric for structural understanding"
+- "Dependency coverage ensures called functions are mentioned"
+- "Control flow awareness checks for loop/branch keywords"
+
+---
+
 ## 📊 **Summary: Code Coverage**
 
 | Component | File | Key Lines | Purpose |
@@ -560,6 +683,8 @@ Shows: Final prompt with instruction, context, examples, and code
 | **Reflective Agent** | `reflective_agent.py` | 11-280 | Agentic workflow (LangGraph) |
 | **Inference** | `inference.py` | 20-325 | End-to-end orchestration |
 | **Prompts** | `prompt.py` | 4-61 | Multi-view prompt fusion |
+| **Evaluation** | `evaluate_system.py` | 9-74 | Comprehensive evaluation pipeline |
+| **Metrics** | `metrics.py` | 1-90 | Multi-metric calculation |
 
 ---
 
@@ -567,20 +692,23 @@ Shows: Final prompt with instruction, context, examples, and code
 
 ### **Slide Organization**
 
-**Option 1: One Slide Per Component** (9 slides)
+**Option 1: One Slide Per Component** (11 slides)
 - Detailed walkthrough of each major component
 - Best for technical deep-dive presentations
+- Includes all components from data loading to evaluation
 
-**Option 2: Grouped Slides** (4-5 slides)
+**Option 2: Grouped Slides** (5-6 slides)
 - **Slide 1**: Data & Model (Dataset + Model Loading)
 - **Slide 2**: Training & Structural Analysis
 - **Slide 3**: Repository Graph & RAG
 - **Slide 4**: Reflective Agent & Inference
+- **Slide 5**: Evaluation & Metrics
 - Best for time-constrained presentations
 
-**Option 3: Highlights Only** (2-3 slides)
+**Option 3: Highlights Only** (3-4 slides)
 - **Slide 1**: Core Pipeline (Training + Inference)
 - **Slide 2**: Novel Components (Repo Graph + Reflective Agent)
+- **Slide 3**: Evaluation Framework (Metrics + SAS)
 - Best for high-level overviews
 
 ### **Screenshot Guidelines**

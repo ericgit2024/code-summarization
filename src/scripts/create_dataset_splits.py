@@ -1,10 +1,10 @@
 """
-Create Train/Validation/Test Splits for CodeXGlue Dataset
+Create Train/Validation/Test Splits for Dataset
 
 Creates stratified splits based on code complexity to ensure balanced distribution.
 
 Usage:
-    python -m src.scripts.create_dataset_splits --input codexglue_processed.jsonl
+    python -m src.scripts.create_dataset_splits --input dataset_processed.jsonl
 """
 
 import argparse
@@ -173,7 +173,7 @@ def save_split(examples, output_file):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Create train/validation/test splits for CodeXGlue dataset"
+        description="Create train/validation/test splits for dataset"
     )
     parser.add_argument(
         '--input',
@@ -236,9 +236,9 @@ def main():
         
         # Save splits
         output_dir = Path(args.output_dir)
-        save_split(train_examples, output_dir / 'codexglue_train.jsonl')
-        save_split(val_examples, output_dir / 'codexglue_validation.jsonl')
-        save_split(test_examples, output_dir / 'codexglue_test.jsonl')
+        save_split(train_examples, output_dir / 'train.jsonl')
+        save_split(val_examples, output_dir / 'validation.jsonl')
+        save_split(test_examples, output_dir / 'test.jsonl')
         
         logger.info("\n✓ Splits created successfully!")
         return 0

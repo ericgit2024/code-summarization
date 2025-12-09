@@ -1,8 +1,8 @@
 """
-Validation script for preprocessed CodeXGlue dataset.
+Validation script for preprocessed dataset.
 
 Usage:
-    python verify_preprocessing.py codexglue_processed.jsonl
+    python verify_preprocessing.py dataset_processed.jsonl
 """
 
 import json

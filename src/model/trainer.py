@@ -13,8 +13,7 @@ def train(
     per_device_train_batch_size=1,
     per_device_eval_batch_size=1,
     learning_rate=2e-4,
-    index_path="rag_index.pkl",
-    dataset_name="custom"  # New parameter: "custom" or "codexglue"
+    index_path="rag_index.pkl"
 ):
     # 1. Load and setup model
     print("Loading model...")
@@ -33,8 +32,8 @@ def train(
         rag_system = None
 
     # 3. Prepare dataset
-    print(f"Loading and preparing dataset: {dataset_name}")
-    dataset = load_and_process_dataset(split="train", dataset_name=dataset_name)
+    print("Loading and preparing custom dataset")
+    dataset = load_and_process_dataset(split="train")
 
     # Split dataset into training and validation
     dataset_split = dataset.train_test_split(test_size=0.1, seed=42)

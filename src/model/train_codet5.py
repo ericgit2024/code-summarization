@@ -20,8 +20,7 @@ def train_codet5(
     output_dir="codet5_finetuned",
     num_train_epochs=1,
     learning_rate=5e-5,
-    limit=50,
-    dataset_name="custom"
+    limit=50
 ):
     """
     Train CodeT5 on a small subset of data.
@@ -31,7 +30,6 @@ def train_codet5(
         num_train_epochs: Number of training epochs (default: 1 for speed)
         learning_rate: Learning rate
         limit: Number of training examples to use (default: 50 for speed)
-        dataset_name: Dataset to use ("custom" or "codexglue")
     """
     print("="*60)
     print("CodeT5 Fast Training")
@@ -45,8 +43,8 @@ def train_codet5(
     model, tokenizer = load_codet5_model(model_id="Salesforce/codet5-base-multi-sum")
     
     # Load dataset
-    print(f"\n2. Loading dataset: {dataset_name}")
-    dataset = load_and_process_dataset(split="train", dataset_name=dataset_name)
+    print("\n2. Loading custom dataset")
+    dataset = load_and_process_dataset(split="train")
     
     # Limit dataset size for fast training
     if limit and len(dataset) > limit:
@@ -152,9 +150,6 @@ def main():
                        help='Learning rate (default: 5e-5)')
     parser.add_argument('--limit', type=int, default=50,
                        help='Number of training examples (default: 50)')
-    parser.add_argument('--dataset', default='custom',
-                       choices=['custom', 'codexglue'],
-                       help='Dataset to use')
     
     args = parser.parse_args()
     
@@ -162,8 +157,7 @@ def main():
         output_dir=args.output_dir,
         num_train_epochs=args.epochs,
         learning_rate=args.lr,
-        limit=args.limit,
-        dataset_name=args.dataset
+        limit=args.limit
     )
 
 

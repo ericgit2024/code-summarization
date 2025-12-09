@@ -9,10 +9,10 @@ from src.model.inference import InferencePipeline
 from src.structure.graph_utils import visualize_cfg
 from src.ui.visualization import visualize_repo_graph
 
-st.set_page_config(page_title="SP-RAG Code Summarizer", layout="wide")
+st.set_page_config(page_title="NeuroGraph-CodeRAG", layout="wide")
 
-st.title("SP-RAG Code Summarization System")
-st.markdown("Generates context-aware code summaries using Repo-Level Graph Analysis.")
+st.title("NeuroGraph-CodeRAG: Code Summarization System")
+st.markdown("Generates context-aware code summaries using Multi-View Graph Analysis, RAG, and Agentic Workflows.")
 
 # Initialize pipeline (Model is loaded once)
 @st.cache_resource

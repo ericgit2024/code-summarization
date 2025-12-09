@@ -2,7 +2,7 @@
 Validation script for dataset splits.
 
 Usage:
-    python verify_splits.py codexglue_train.jsonl codexglue_validation.jsonl codexglue_test.jsonl
+    python verify_splits.py train.jsonl validation.jsonl test.jsonl
 """
 
 import json
