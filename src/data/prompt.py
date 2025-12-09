@@ -1,5 +1,5 @@
-from src.structure.ast_utils import get_structural_prompt
-from src.structure.graph_utils import get_cfg, get_pdg, get_call_graph, get_call_graph_with_files
+from src.structure.ast_analyzer import get_ast_prompt
+from src.structure.graph_utils import get_cfg_prompt, get_pdg_prompt, get_call_graph, get_call_graph_with_files
 
 def construct_structural_prompt(code_string, repo_graph=None):
     """
@@ -12,9 +12,9 @@ def construct_structural_prompt(code_string, repo_graph=None):
     Returns:
         str: A hierarchical text representation of the code structure.
     """
-    ast_prompt = get_structural_prompt(code_string)
-    cfg_prompt = get_cfg(code_string)
-    pdg_prompt = get_pdg(code_string)
+    ast_prompt = get_ast_prompt(code_string)
+    cfg_prompt = get_cfg_prompt(code_string)
+    pdg_prompt = get_pdg_prompt(code_string)
     
     # Use enhanced call graph if repo_graph is available
     if repo_graph:

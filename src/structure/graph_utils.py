@@ -397,22 +397,152 @@ def _find_function_file(func_name, repo_graph):
         repo_graph: RepoGraphBuilder instance
         
     Returns:
-        str: Filename (basename) if found, None otherwise
+        str: Filename (relative path if possible) if found, None otherwise
     """
     import os
     
+    # Helper to get display path from node data
+    def get_display_path(node_data):
+        relative = node_data.get('relativePath')
+        if relative:
+            return relative.replace(os.sep, '/')
+        
+        file_path = node_data.get('file_path', '')
+        if not file_path:
+            return None
+            
+        # Try to compute relative if root_dir is available in repo_graph
+        if hasattr(repo_graph, 'root_dir') and repo_graph.root_dir:
+            try:
+                return os.path.relpath(file_path, repo_graph.root_dir).replace(os.sep, '/')
+            except:
+                pass
+        
+        return os.path.basename(file_path)
+
     # Try direct match first
     if func_name in repo_graph.graph:
-        file_path = repo_graph.graph.nodes[func_name].get('file_path', '')
-        if file_path:
-            return os.path.basename(file_path)
+        return get_display_path(repo_graph.graph.nodes[func_name])
     
     # Try partial matches (e.g., "method" might be "Class.method")
     for node in repo_graph.graph.nodes():
         if node.endswith(f".{func_name}") or node == func_name:
-            file_path = repo_graph.graph.nodes[node].get('file_path', '')
-            if file_path:
-                return os.path.basename(file_path)
+            path = get_display_path(repo_graph.graph.nodes[node])
+            if path:
+                return path
     
     return None
+
+
+def get_cfg_prompt(code):
+    """
+    Generates a simplified Control Flow Graph (CFG) prompt for the model.
+    Structure:
+    Block <ID>:
+      <Statements>
+      -> Exits to <ID>
+    """
+    try:
+        cfg_builder = CFGBuilder()
+        cfg = cfg_builder.build_from_src("input_code", code)
+
+        lines = []
+        all_blocks = []
+        for func_cfg in cfg.functioncfgs.values():
+            all_blocks.extend(list(func_cfg.own_blocks()))
+        all_blocks.sort(key=lambda b: b.id)
+
+        for block in all_blocks:
+            lines.append(f"Block {block.id}:")
+            for stmt in block.statements:
+                stmt_code = node_to_simplified_code(stmt)
+                lines.append(f"  {stmt_code}")
+            
+            if block.exits:
+                exits = ", ".join([str(e.target.id) for e in block.exits])
+                lines.append(f"  -> Exits to: {exits}")
+            lines.append("")
+            
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Error generating CFG prompt: {e}"
+
+def get_pdg_prompt(code):
+    """
+    Generates a Program Dependence Graph (PDG) prompt.
+    Structure:
+    Node <ID>: <Statement>
+      <- Controlled by: <ID>
+      <- Data from: <ID>(var), ...
+    """
+    try:
+        cfg_builder = CFGBuilder()
+        cfg = cfg_builder.build_from_src("input_code", code)
+        
+        lines = []
+
+        for func_name, func_cfg in cfg.functioncfgs.items():
+            lines.append(f"Function: {func_name}")
+            
+            blocks = list(func_cfg.own_blocks())
+            blocks.sort(key=lambda b: b.id)
+            
+            if not blocks:
+                continue
+                
+            entry_block_id = blocks[0].id
+            nx_graph = nx.DiGraph()
+            for block in blocks:
+                nx_graph.add_node(block.id)
+                for exit in block.exits:
+                    nx_graph.add_edge(block.id, exit.target.id)
+            
+            cd_edges = compute_control_dependencies(nx_graph, entry_block_id)
+            dd_edges = compute_data_dependencies(blocks, nx_graph)
+            
+            # Map for quick lookup
+            # dest -> set of sources
+            cd_map = {}
+            for src, dest in cd_edges:
+                if dest not in cd_map: cd_map[dest] = []
+                cd_map[dest].append(src)
+                
+            dd_map = {}
+            for src, dest, var in dd_edges:
+                if dest not in dd_map: dd_map[dest] = []
+                dd_map[dest].append(f"{src}({var})")
+            
+            for block in blocks:
+                # Basic statement representation
+                # We combine statements for the block label if multiple
+                stmts = [node_to_simplified_code(s) for s in block.statements]
+                content = "; ".join(stmts) if stmts else "<Entry/Exit>"
+                
+                lines.append(f"Node {block.id}: {content}")
+                
+                # Dependencies
+                if block.id in cd_map:
+                    refs = ", ".join(map(str, sorted(cd_map[block.id])))
+                    lines.append(f"  <- Controlled by: {refs}")
+                
+                if block.id in dd_map:
+                    refs = ", ".join(sorted(dd_map[block.id]))
+                    lines.append(f"  <- Data from: {refs}")
+            lines.append("")
+
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Error generating PDG prompt: {e}"
+
+def node_to_simplified_code(node):
+    """
+    Simplified version of node_to_code for prompts.
+    """
+    if isinstance(node, ast.AST):
+        try:
+            return ast.unparse(node).strip()
+        except:
+            pass
+    return str(node).strip()
+
 

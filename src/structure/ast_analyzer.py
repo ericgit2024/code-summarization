@@ -237,3 +237,178 @@ class FunctionBodyAnalyzer(ast.NodeVisitor):
         elif isinstance(node.ctx, ast.Load):
              name = self._get_func_name(node)
              self.used_vars.add(name)
+
+class ASTPromptGenerator(ast.NodeVisitor):
+    def __init__(self):
+        self.output = []
+        self.indent_level = 0
+    
+    def _log(self, text):
+        indent = "  " * self.indent_level
+        self.output.append(f"{indent}{text}")
+        
+    def indent(self):
+        self.indent_level += 1
+        
+    def dedent(self):
+        self.indent_level -= 1
+        
+    def generate(self, node):
+        self.visit(node)
+        return "\n".join(self.output)
+        
+    def visit_Module(self, node):
+        for item in node.body:
+            self.visit(item)
+            
+    def visit_FunctionDef(self, node):
+        args = ", ".join([a.arg for a in node.args.args])
+        self._log(f"Function: {node.name}({args}) [Line {node.lineno}]")
+        self.indent()
+        for item in node.body:
+            self.visit(item)
+        self.dedent()
+        
+    def visit_AsyncFunctionDef(self, node):
+        args = ", ".join([a.arg for a in node.args.args])
+        self._log(f"AsyncFunction: {node.name}({args}) [Line {node.lineno}]")
+        self.indent()
+        for item in node.body:
+            self.visit(item)
+        self.dedent()
+        
+    def visit_ClassDef(self, node):
+        self._log(f"Class: {node.name} [Line {node.lineno}]")
+        self.indent()
+        for item in node.body:
+            self.visit(item)
+        self.dedent()
+        
+    def visit_Return(self, node):
+        val = self._get_source(node.value) if node.value else "None"
+        self._log(f"Return: {val}")
+        
+    def visit_Assign(self, node):
+        targets = ", ".join([self._get_source(t) for t in node.targets])
+        val = self._get_source(node.value)
+        self._log(f"Assign: {targets} = {val}")
+        
+    def visit_AugAssign(self, node):
+        target = self._get_source(node.target)
+        val = self._get_source(node.value)
+        op = type(node.op).__name__
+        self._log(f"AugAssign: {target} {op}= {val}")
+
+    def visit_AnnAssign(self, node):
+        target = self._get_source(node.target)
+        val = self._get_source(node.value) if node.value else "None"
+        self._log(f"AnnAssign: {target} = {val}")
+
+    def visit_For(self, node):
+        target = self._get_source(node.target)
+        iter_ = self._get_source(node.iter)
+        self._log(f"For: {target} in {iter_}")
+        self.indent()
+        for item in node.body:
+            self.visit(item)
+        self.dedent()
+
+    def visit_AsyncFor(self, node):
+        target = self._get_source(node.target)
+        iter_ = self._get_source(node.iter)
+        self._log(f"AsyncFor: {target} in {iter_}")
+        self.indent()
+        for item in node.body:
+            self.visit(item)
+        self.dedent()
+
+    def visit_While(self, node):
+        test = self._get_source(node.test)
+        self._log(f"While: {test}")
+        self.indent()
+        for item in node.body:
+            self.visit(item)
+        self.dedent()
+        
+    def visit_If(self, node):
+        test = self._get_source(node.test)
+        self._log(f"If: {test}")
+        self.indent()
+        for item in node.body:
+            self.visit(item)
+        self.dedent()
+        if node.orelse:
+            self._log("Else:")
+            self.indent()
+            for item in node.orelse:
+                self.visit(item)
+            self.dedent()
+            
+    def visit_With(self, node):
+        items = ", ".join([self._get_source(i) for i in node.items])
+        self._log(f"With: {items}")
+        self.indent()
+        for item in node.body:
+            self.visit(item)
+        self.dedent()
+
+    def visit_AsyncWith(self, node):
+        items = ", ".join([self._get_source(i) for i in node.items])
+        self._log(f"AsyncWith: {items}")
+        self.indent()
+        for item in node.body:
+            self.visit(item)
+        self.dedent()
+
+    def visit_Raise(self, node):
+        exc = self._get_source(node.exc) if node.exc else "None"
+        self._log(f"Raise: {exc}")
+
+    def visit_Try(self, node):
+        self._log("Try:")
+        self.indent()
+        for item in node.body:
+            self.visit(item)
+        self.dedent()
+        for handler in node.handlers:
+            exc = self._get_source(handler.type) if handler.type else "Exception"
+            name = handler.name if handler.name else ""
+            label = f"Except: {exc} as {name}" if name else f"Except: {exc}"
+            self._log(label)
+            self.indent()
+            for item in handler.body:
+                self.visit(item)
+            self.dedent()
+        if node.finalbody:
+            self._log("Finally:")
+            self.indent()
+            for item in node.finalbody:
+                self.visit(item)
+            self.dedent()
+            
+    def visit_Expr(self, node):
+        # Only log actual calls or meantingful expressions
+        if isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
+            pass
+        else:
+            self._log(f"Expr: {self._get_source(node.value)}")
+
+    def _get_source(self, node):
+        if node is None:
+            return ""
+        try:
+            return ast.unparse(node)
+        except:
+            return str(node)
+
+def get_ast_prompt(code):
+    """
+    Generates a structural AST prompt for the given code.
+    """
+    try:
+        tree = ast.parse(code)
+        generator = ASTPromptGenerator()
+        return generator.generate(tree)
+    except Exception as e:
+        return f"Error generating AST prompt: {e}"
+

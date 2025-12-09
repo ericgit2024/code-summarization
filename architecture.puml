@@ -1,78 +1,80 @@
-@startuml
-title NeuroGraph-CodeRAG Architecture
+@startuml NeuroGraph-CodeRAG Architecture
 
-skinparam componentStyle uml2
-skinparam packageStyle rectangle
+!theme plain
+left to right direction
 
-package "Presentation Layer" {
+skinparam componentStyle rectangle
+skinparam linetype ortho
+skinparam nodesep 100
+skinparam ranksep 120
+skinparam padding 25
+skinparam arrowThickness 2
+
+title Architecture Diagram - NeuroGraph-CodeRAG
+
+' ============================================
+' PRESENTATION LAYER
+' ============================================
+package "Presentation Layer" #E8F5E9 {
+    [Input Handler] as Input
     [Streamlit UI] as UI
-    note right of UI
-        Handles user input,
-        file uploads, and
-        visualizations.
-    end note
 }
 
-package "Application Logic" {
-    component "InferencePipeline" as Pipeline {
-        port "Generate" as GenPort
-    }
-
-    component "ReflectiveAgent" as Agent {
-        note bottom
-            LangGraph Workflow:
-            Generate -> Critique ->
-            Decide -> Consult -> Refine
-        end note
-    }
+' ============================================
+' APPLICATION LAYER
+' ============================================
+package "Application Layer" #E3F2FD {
+    [Smart Agent Mode\n(LangGraph)] as Agent
 }
 
-package "Structural Analysis" {
-    [RepoGraphBuilder] as GraphBuilder
-    [ASTAnalyzer] as Analyzer
-    [Graph Utils] as GraphUtils
-
-    artifact "Repository Graph\n(NetworkX)" as RepoGraph
+' ============================================
+' CORE PROCESSING
+' ============================================
+package "Structural Analysis" #FFF3E0 {
+    [Multi-View Analyzer\n(AST, CFG, PDG)] as Analyzer
+    [Repository Graph] as RepoGraph
 }
 
-package "Retrieval System" {
-    [RAGSystem] as RAG
-    database "FAISS Index" as FAISS
-    [SentenceTransformer] as Encoder
+package "Retrieval" #F3E5F5 {
+    [RAG System\n(FAISS + CodeBERT)] as RAG
 }
 
-package "Model Infrastructure" {
-    [Model Loader] as Loader
-    component "LLM (Gemma-2b)" as LLM
+package "Model" #FCE4EC {
+    [Gemma 2b with LoRA] as LLM
 }
 
-package "Training & Data" {
-    [Trainer] as Trainer
-    [Dataset Loader] as DataLoader
+' ============================================
+' DATA LAYER
+' ============================================
+package "Data Layer" #E0F2F1 {
+    [Training Pipeline] as Training
+    database "Datasets &\nCheckpoints" as Data
 }
 
-' Relationships
-UI --> Pipeline : Requests Summary / Build Graph
-UI --> GraphUtils : Visualizes CFG
-UI --> GraphBuilder : Visualizes Repo Graph
+' ============================================
+' MAIN FLOW
+' ============================================
+Input --> UI : "Code files"
+UI --> Agent : "Code Input"
+UI --> Analyzer : "Visualize structures"
 
-Pipeline --> Loader : Loads Model
-Pipeline --> LLM : Generates Text
-Pipeline --> GraphBuilder : Builds/Queries Graph
-Pipeline --> RAG : Retrieves Similar Code
-Pipeline <--> Agent : Orchestrates / Uses
+Agent --> Analyzer
 
-Agent --> GraphBuilder : Consults for Context
+Analyzer --> RepoGraph : "Build call graph"
+Analyzer --> RAG : "Retrieve examples"
 
-GraphBuilder --> Analyzer : Parses Code
-GraphBuilder --> RepoGraph : Constructs
-Analyzer --> GraphUtils : Uses
+RAG --> LLM : "Structural prompts"
+RepoGraph --> LLM : "Context"
 
-RAG --> Encoder : Encodes Code
-RAG --> FAISS : Search / Storage
+LLM --> Agent : "Summary/Critique"
+Agent --> LLM : "Refine" 
 
-Trainer --> DataLoader : Loads Data
-Trainer --> LLM : Fine-tunes
-Trainer --> RAG : Augments Training Data
+Agent --> UI : "Display"
+
+' ============================================
+' TRAINING FLOW
+' ============================================
+Data --> Training
+Training --> LLM : "Fine-tune"
 
 @enduml

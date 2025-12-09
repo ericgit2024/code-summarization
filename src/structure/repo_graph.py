@@ -12,6 +12,7 @@ class RepoGraphBuilder:
     def __init__(self):
         self.graph = nx.DiGraph()
         self.node_metadata = {} # Cache for metadata
+        self.root_dir = None
 
     def add_function(self, name, code, file_path, docstring=None, metadata=None):
         """Adds a function node to the graph with enhanced metadata."""
@@ -19,12 +20,21 @@ class RepoGraphBuilder:
         # If metadata has qualified name (e.g. Class.method), we might want to use that as ID.
         # But for backward compatibility/simplicity, we might use just function name or fully qualified if possible.
         # Let's try to use the name provided which should be fully qualified if coming from ASTAnalyzer
+        
+        # Calculate relative path if root_dir is set
+        display_path = file_path
+        if self.root_dir and file_path.startswith(self.root_dir):
+            try:
+                display_path = os.path.relpath(file_path, self.root_dir)
+            except Exception:
+                pass
 
         node_id = name
         self.graph.add_node(
             node_id,
             code=code,
             file_path=file_path,
+            relativePath=display_path, # Store relative path explicitly
             docstring=docstring,
             type="function",
             metadata=metadata or {}
@@ -33,7 +43,8 @@ class RepoGraphBuilder:
 
     def build_from_directory(self, root_dir):
         """Walks the directory and parses all Python files using ASTAnalyzer."""
-        logger.info(f"Building graph from directory: {root_dir}")
+        self.root_dir = os.path.abspath(root_dir)
+        logger.info(f"Building graph from directory: {self.root_dir}")
         count = 0
         for root, _, files in os.walk(root_dir):
             for file in files:
@@ -332,7 +343,7 @@ class RepoGraphBuilder:
         lines = []
         lines.append(f"Context for function '{node_name}':")
         lines.append("")
-        lines.append("**IMPORTANT**: When mentioning these functions in your summary, ALWAYS include their source file using the format: 'function_name() from filename.py'")
+        lines.append("**IMPORTANT**: When mentioning these functions in your summary, ALWAYS include their source file using the format: 'function_name() from path/to/filename.py'")
         lines.append("")
         
         # List selected dependencies with scores
@@ -346,10 +357,23 @@ class RepoGraphBuilder:
             doc = data.get("docstring")
             doc_summary = doc.split('\n')[0] if doc else "No docstring"
             
-            file_path = data.get("file_path", "unknown file")
-            filename = os.path.basename(file_path)
+            # Prefer relative path, falling back to simplified format or basename
+            file_path = data.get("file_path", "")
+            relative_path = data.get("relativePath")
+            
+            if relative_path:
+                display_path = relative_path.replace(os.sep, '/') # Ensure forward slashes for prompt consistency
+            elif file_path and self.root_dir:
+                try:
+                    display_path = os.path.relpath(file_path, self.root_dir).replace(os.sep, '/')
+                except:
+                    display_path = os.path.basename(file_path)
+            elif file_path:
+                display_path = os.path.basename(file_path)
+            else:
+                display_path = "unknown file"
 
-            lines.append(f"  - **{n}()** from **{filename}** (Relevance: {total:.1f})")
+            lines.append(f"  - **{n}()** from **{display_path}** (Relevance: {total:.1f})")
             lines.append(f"    Description: {doc_summary}")
             lines.append(f"    Reason: {breakdown}")
 

@@ -1,0 +1,44 @@
+@startuml NeuroGraph-CodeRAG System Context
+
+!theme plain
+skinparam componentStyle rectangle
+skinparam linetype ortho
+skinparam padding 15
+skinparam arrowThickness 2
+
+title System Context Diagram - NeuroGraph-CodeRAG
+
+' External Actors
+actor "Developer" as Dev #LightBlue
+database "Code\nRepository" as Repo #LightGray
+database "Training\nDatasets" as Data #LightGray
+
+' System Boundary
+rectangle "NeuroGraph-CodeRAG System" #E8F5E9 {
+    component "Code Summarization\nEngine" as System #4CAF50
+}
+
+' External Dependencies
+cloud "Gemma-2b\nLLM" as LLM #FFE0B2
+cloud "CodeBERT\nEmbeddings" as CodeBERT #E1BEE7
+
+' Relationships
+Dev --> System : "Submit code\nfor summarization"
+System --> Dev : "Return natural\nlanguage summary"
+
+Repo --> System : "Provide source code\nand dependencies"
+Data --> System : "Training examples"
+
+System --> LLM : "Generate summaries\n(with LoRA)"
+System --> CodeBERT : "Encode code\nfor retrieval"
+
+note right of System
+  **Core Capabilities:**
+  • Multi-view structural analysis
+    (AST, CFG, PDG, Call Graph)
+  • RAG-enhanced context
+  • Agentic self-correction
+  • Repository-wide understanding
+end note
+
+@enduml

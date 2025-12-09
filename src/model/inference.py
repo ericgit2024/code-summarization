@@ -1,5 +1,5 @@
-from src.structure.ast_utils import get_structural_prompt
-from src.structure.graph_utils import get_cfg, get_pdg, get_call_graph
+from src.structure.ast_analyzer import get_ast_prompt
+from src.structure.graph_utils import get_cfg_prompt, get_pdg_prompt, get_call_graph
 from src.structure.repo_graph import RepoGraphBuilder
 from src.retrieval.rag import RAGSystem
 # from src.model.model_loader import load_gemma_model, setup_lora
@@ -115,6 +115,7 @@ class InferencePipeline:
                  "   - If no function calls are present, explicitly state 'This function makes no external function calls.'\n"
                  "   - Example format: 'This function calls: 1) get_customer_by_id() from CustomerService to retrieve customer data, 2) get_product_by_id() from ProductService to fetch product details, 3) update_stock() from Product to modify inventory levels.'\n\n"
                  "Ensure the content is detailed and thorough."
+                 "\n\n**CRITICAL NEGATIVE CONSTRAINT**: Do NOT output the AST, CFG, PDG, or any code blocks representing the structural analysis. These are provided for your understanding only. Your output must be purely the natural language summary described above."
              )
 
         repo_context = None
@@ -218,9 +219,9 @@ class InferencePipeline:
         self._current_structural_prompt = structural_prompt
         
         self.last_structural_prompts = {
-            "ast": get_structural_prompt(code),
-            "cfg": get_cfg(code),
-            "pdg": get_pdg(code),
+            "ast": get_ast_prompt(code),
+            "cfg": get_cfg_prompt(code),
+            "pdg": get_pdg_prompt(code),
             "call_graph": structural_prompt.split("Call Graph:\n")[-1] if "Call Graph:" in structural_prompt else "N/A"
         }
 

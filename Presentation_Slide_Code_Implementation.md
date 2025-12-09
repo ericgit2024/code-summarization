@@ -757,4 +757,140 @@ For each screenshot:
 
 ---
 
-**End of Code Implementation Slide**
+## 🎓 **Conclusion: NeuroGraph-CodeRAG**
+
+### **What We Achieved**
+
+Our model successfully demonstrates a **novel approach to dependency-aware code summarization** through:
+
+✅ **Multi-View Structural Analysis**
+- Fusion of AST, CFG, PDG, and Call Graph for comprehensive code understanding
+- First system to integrate all four graph representations
+
+✅ **Repository-Wide Context**
+- Intelligent subgraph extraction with relevance-based scoring
+- Cross-file dependency resolution and import tracking
+
+✅ **Agentic Self-Correction**
+- LangGraph-based reflective workflow for iterative refinement
+- Dynamic context consultation when dependencies are missing
+
+✅ **Hybrid RAG System**
+- Semantic code retrieval using CodeBERT embeddings
+- Structural context augmentation for better matching
+
+✅ **Comprehensive Evaluation**
+- Novel Structural Accuracy Score (SAS) measuring dependency coverage
+- Multi-metric assessment (BLEU, ROUGE, METEOR, Semantic Similarity)
+
+---
+
+### **Current Challenges**
+
+Despite our innovations, we acknowledge several limitations that impact performance:
+
+> [!WARNING]
+> **Dataset Constraints**
+
+**1. Small Custom Dataset**
+- Limited training examples restrict model generalization
+- Insufficient diversity in code patterns and programming paradigms
+- **Impact**: Model may not perform well on unseen code structures
+
+**2. Limited Training Epochs**
+- Current training uses minimal epochs due to time/resource constraints
+- Model hasn't fully converged to optimal performance
+- **Impact**: Suboptimal BLEU/ROUGE scores compared to state-of-the-art
+
+> [!CAUTION]
+> **Data Quality Issues**
+
+**3. Need to Improve Dataset Quality**
+- Reference summaries may not consistently emphasize dependencies
+- Inconsistent annotation standards across examples
+- **Impact**: Model learns from imperfect supervision signal
+
+**4. No Existing Dependency-Aware Summary Dataset**
+- **Critical Gap**: No benchmark dataset exists for dependency-aware summarization
+- We had to create our own annotations from scratch
+- **Impact**: Cannot directly compare with prior work on this specific task
+
+> [!IMPORTANT]
+> **Training Limitations**
+
+**5. Insufficient Training Duration**
+- Need to significantly increase training epochs (10x or more)
+- Requires more computational resources and time
+- **Impact**: Model hasn't reached its full potential
+
+---
+
+### **Future Work & Improvements**
+
+To address these challenges, we propose:
+
+#### **📊 Dataset Enhancement**
+- [ ] **Expand dataset size** to 10,000+ examples with diverse code patterns
+- [ ] **Create dependency-aware annotations** with explicit function call documentation
+- [ ] **Establish benchmark dataset** for community use and reproducible evaluation
+- [ ] **Improve reference quality** with multiple human-annotated summaries per example
+
+#### **🚀 Training Optimization**
+- [ ] **Increase training epochs** from current baseline to 50+ epochs
+- [ ] **Implement curriculum learning** starting with simple functions, progressing to complex
+- [ ] **Add data augmentation** through code transformations (renaming, refactoring)
+- [ ] **Experiment with larger models** (Gemma-7B, CodeLlama-13B) for better capacity
+
+#### **🔬 Model Improvements**
+- [ ] **Fine-tune dependency detection** with specialized loss function
+- [ ] **Enhance prompt engineering** to better emphasize function calls
+- [ ] **Integrate static analysis tools** for more accurate call graph extraction
+- [ ] **Add multi-task learning** (summarization + dependency extraction jointly)
+
+#### **📈 Evaluation Expansion**
+- [ ] **Human evaluation study** with software engineers rating summary quality
+- [ ] **Task-based evaluation** (can developers understand code from summary alone?)
+- [ ] **Ablation studies** to measure contribution of each component
+- [ ] **Cross-language evaluation** (Python, Java, JavaScript, etc.)
+
+---
+
+### **Key Takeaways**
+
+| Aspect | Status | Notes |
+|--------|--------|-------|
+| **Innovation** | ✅ **Strong** | Novel multi-view graph fusion + agentic workflow |
+| **Architecture** | ✅ **Complete** | All components implemented and integrated |
+| **Evaluation** | ⚠️ **Partial** | Metrics implemented, but limited by dataset |
+| **Performance** | ⚠️ **Promising** | Shows potential, needs more training |
+| **Scalability** | ✅ **Good** | Efficient algorithms, runs on consumer hardware |
+| **Reproducibility** | ✅ **High** | Well-documented, modular codebase |
+
+---
+
+### **Final Thoughts**
+
+> [!NOTE]
+> **Research Contribution**
+
+**NeuroGraph-CodeRAG represents a significant step forward in dependency-aware code summarization.** While we face challenges common to novel research directions—limited data, computational constraints, and lack of established benchmarks—our architectural innovations and comprehensive implementation provide a solid foundation for future work.
+
+**The core insight remains valid**: Code summarization must understand dependencies to be truly useful. Our multi-view structural analysis and agentic refinement demonstrate that this is achievable, and with improved datasets and extended training, we expect substantial performance gains.
+
+**This is not the end, but the beginning** of a new research direction in dependency-aware program understanding.
+
+---
+
+### **Acknowledgments**
+
+- **HuggingFace** for Transformers library and model hosting
+- **Google** for Gemma-2B base model
+- **LangChain/LangGraph** for agentic workflow framework
+- **CodeBERT team** for semantic code embeddings
+- **Open-source community** for tools and libraries
+
+---
+
+**End of Presentation**
+
+*Thank you for your attention. Questions?*
