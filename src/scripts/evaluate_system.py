@@ -4,8 +4,9 @@ from src.utils.metrics import compute_metrics
 from tqdm import tqdm
 import json
 import random
+import argparse
 
-def run_comprehensive_evaluation(num_samples=10):
+def run_comprehensive_evaluation(num_samples=10, model_type="gemma"):
     print("Loading dataset...")
     dataset = load_and_process_dataset(split="validation")
 
@@ -13,8 +14,8 @@ def run_comprehensive_evaluation(num_samples=10):
     limit = min(num_samples, len(dataset))
     subset = dataset.select(range(limit))
 
-    print("Initializing Pipeline...")
-    pipeline = InferencePipeline()
+    print(f"Initializing Pipeline with model: {model_type}...")
+    pipeline = InferencePipeline(model_type=model_type)
 
     results = []
 
@@ -73,4 +74,9 @@ def run_comprehensive_evaluation(num_samples=10):
     print("\nDetailed report saved to eval_report.json")
 
 if __name__ == "__main__":
-    run_comprehensive_evaluation()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model_type", type=str, default="gemma", help="Model type to use: 'gemma' or 'codet5'")
+    parser.add_argument("--num_samples", type=int, default=10, help="Number of samples to evaluate")
+    args = parser.parse_args()
+
+    run_comprehensive_evaluation(num_samples=args.num_samples, model_type=args.model_type)

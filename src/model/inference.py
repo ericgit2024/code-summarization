@@ -9,6 +9,12 @@ except ImportError:
     print("WARNING: Failed to load real model loader. Using mock loader.")
     from src.model.model_loader_mock import load_gemma_model, setup_lora
 
+try:
+    from src.model.codet5_loader import load_codet5_model
+except ImportError:
+    print("WARNING: Failed to load CodeT5 loader.")
+    load_codet5_model = None
+
 from peft import PeftModel
 import pickle
 import os
@@ -18,37 +24,50 @@ from unittest.mock import MagicMock
 from src.model.reflective_agent import ReflectiveAgent
 
 class InferencePipeline:
-    def __init__(self, model_dir="gemma_lora_finetuned", index_path="rag_index.pkl", repo_path=None, allow_mock=False):
+    def __init__(self, model_dir="gemma_lora_finetuned", index_path="rag_index.pkl", repo_path=None, allow_mock=False, model_type="gemma"):
         print("Loading model and tokenizer...")
-        # Load base model - no mock fallback unless explicitly allowed
-        try:
-            self.model, self.tokenizer = load_gemma_model()
-            print("✓ Successfully loaded Gemma model")
-        except Exception as e:
-            if allow_mock:
-                print(f"WARNING: Failed to load real model: {e}. Using mock loader.")
-                from src.model.model_loader_mock import load_gemma_model as mock_loader
-                self.model, self.tokenizer = mock_loader()
-            else:
-                raise RuntimeError(
-                    f"Failed to load Gemma model: {e}\n"
-                    "The smart agent requires the real Gemma model to function correctly.\n"
-                    "Please ensure the model is properly installed and accessible."
-                ) from e
+        self.model_type = model_type
 
-        self.tokenizer.pad_token = self.tokenizer.eos_token
-
-        # Load LoRA adapter if exists, else use base model
-        if os.path.exists(model_dir):
-            print(f"Loading LoRA adapter from {model_dir}...")
+        if model_type == "codet5":
+            if load_codet5_model is None:
+                raise ImportError("CodeT5 loader is not available.")
             try:
-                self.model = PeftModel.from_pretrained(self.model, model_dir)
-                print("✓ Successfully loaded LoRA adapter")
+                self.model, self.tokenizer = load_codet5_model()
+                print("✓ Successfully loaded CodeT5 model")
             except Exception as e:
-                print(f"Warning: Failed to load LoRA adapter: {e}")
-                print("Continuing with base model...")
+                raise RuntimeError(f"Failed to load CodeT5 model: {e}") from e
         else:
-            print("LoRA adapter not found. Using base model.")
+            # Load base model - no mock fallback unless explicitly allowed
+            try:
+                self.model, self.tokenizer = load_gemma_model()
+                print("✓ Successfully loaded Gemma model")
+            except Exception as e:
+                if allow_mock:
+                    print(f"WARNING: Failed to load real model: {e}. Using mock loader.")
+                    from src.model.model_loader_mock import load_gemma_model as mock_loader
+                    self.model, self.tokenizer = mock_loader()
+                else:
+                    raise RuntimeError(
+                        f"Failed to load Gemma model: {e}\n"
+                        "The smart agent requires the real Gemma model to function correctly.\n"
+                        "Please ensure the model is properly installed and accessible."
+                    ) from e
+
+            # Load LoRA adapter if exists, else use base model
+            if os.path.exists(model_dir):
+                print(f"Loading LoRA adapter from {model_dir}...")
+                try:
+                    self.model = PeftModel.from_pretrained(self.model, model_dir)
+                    print("✓ Successfully loaded LoRA adapter")
+                except Exception as e:
+                    print(f"Warning: Failed to load LoRA adapter: {e}")
+                    print("Continuing with base model...")
+            else:
+                print("LoRA adapter not found. Using base model.")
+
+        # Ensure pad token is set (especially for Gemma)
+        if self.tokenizer.pad_token is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
 
         if hasattr(self.model, "eval"):
             self.model.eval()
@@ -237,8 +256,14 @@ class InferencePipeline:
                 pad_token_id=self.tokenizer.eos_token_id
             )
 
-        # Decode and strip the prompt from the output by slicing token IDs
-        generated_tokens = outputs[0][input_len:]
+        # Decode output
+        if self.model_type == "codet5":
+            # Seq2Seq models output only the generated text
+            generated_tokens = outputs[0]
+        else:
+            # CausalLM models output prompt + generated text, so we slice
+            generated_tokens = outputs[0][input_len:]
+
         print(f"\nGenerated token count: {len(generated_tokens)}")
         
         summary = self.tokenizer.decode(generated_tokens, skip_special_tokens=True).strip()
