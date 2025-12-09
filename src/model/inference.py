@@ -15,6 +15,12 @@ except ImportError:
     print("WARNING: Failed to load CodeT5 loader.")
     load_codet5_model = None
 
+try:
+    from src.model.codegraphbert_loader import load_codegraphbert_model
+except ImportError:
+    print("WARNING: Failed to load GraphCodeBERT loader.")
+    load_codegraphbert_model = None
+
 from peft import PeftModel
 import pickle
 import os
@@ -36,6 +42,14 @@ class InferencePipeline:
                 print("✓ Successfully loaded CodeT5 model")
             except Exception as e:
                 raise RuntimeError(f"Failed to load CodeT5 model: {e}") from e
+        elif model_type == "codegraphbert":
+            if load_codegraphbert_model is None:
+                raise ImportError("GraphCodeBERT loader is not available.")
+            try:
+                self.model, self.tokenizer = load_codegraphbert_model()
+                print("✓ Successfully loaded GraphCodeBERT model")
+            except Exception as e:
+                raise RuntimeError(f"Failed to load GraphCodeBERT model: {e}") from e
         else:
             # Load base model - no mock fallback unless explicitly allowed
             try:
@@ -211,13 +225,20 @@ class InferencePipeline:
         }
 
         # 3. Construct Hierarchical Prompt
-        full_prompt = self.construct_hierarchical_prompt(
-            code,
-            metadata,
-            repo_context,
-            retrieved_items,
-            instruction
-        )
+        if self.model_type == "codet5":
+             # Simpler prompt for CodeT5
+             full_prompt = f"Summarize Python: {code}"
+        elif self.model_type == "codegraphbert":
+             # Simpler prompt for GraphCodeBERT (Code-only for now)
+             full_prompt = code
+        else:
+             full_prompt = self.construct_hierarchical_prompt(
+                code,
+                metadata,
+                repo_context,
+                retrieved_items,
+                instruction
+            )
 
         return self.generate_response(full_prompt)
 
@@ -257,7 +278,7 @@ class InferencePipeline:
             )
 
         # Decode output
-        if self.model_type == "codet5":
+        if self.model_type in ["codet5", "codegraphbert"]:
             # Seq2Seq models output only the generated text
             generated_tokens = outputs[0]
         else:

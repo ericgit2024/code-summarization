@@ -75,7 +75,7 @@ def run_comprehensive_evaluation(num_samples=10, model_type="gemma"):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_type", type=str, default="gemma", help="Model type to use: 'gemma' or 'codet5'")
+    parser.add_argument("--model_type", type=str, default="gemma", help="Model type to use: 'gemma', 'codet5', or 'codegraphbert'")
     parser.add_argument("--num_samples", type=int, default=10, help="Number of samples to evaluate")
     args = parser.parse_args()
 
