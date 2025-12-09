@@ -20,7 +20,13 @@ class CodeT5Inference:
             use_finetuned: If True, use fine-tuned model; otherwise use pretrained
         """
         self.use_finetuned = use_finetuned
-        self.model, self.tokenizer = load_codet5_model(use_finetuned=use_finetuned)
+        
+        if use_finetuned:
+            model_id = "codet5_finetuned"
+        else:
+            model_id = "Salesforce/codet5-base-multi-sum"
+        
+        self.model, self.tokenizer = load_codet5_model(model_id=model_id)
         self.model.eval()
         
         print(f"CodeT5 Inference Pipeline initialized ({'fine-tuned' if use_finetuned else 'zero-shot'})")
