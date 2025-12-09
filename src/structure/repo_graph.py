@@ -343,7 +343,10 @@ class RepoGraphBuilder:
             doc = data.get("docstring")
             doc_summary = doc.split('\n')[0] if doc else "No docstring"
             
-            lines.append(f"  - Function '{n}' (Relevance: {total:.1f}): {doc_summary}")
+            file_path = data.get("file_path", "unknown file")
+            filename = os.path.basename(file_path)
+
+            lines.append(f"  - Function '{n}' from '{filename}' (Relevance: {total:.1f}): {doc_summary}")
             lines.append(f"    Reason: {breakdown}")
 
             # Maybe show signature?
