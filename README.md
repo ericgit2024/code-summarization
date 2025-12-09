@@ -100,6 +100,32 @@ python3 -m src.model.trainer --dataset-name codexglue
 
 For detailed CodeXGlue integration instructions, see [CODEXGLUE_INTEGRATION.md](./CODEXGLUE_INTEGRATION.md).
 
+### 7. Baseline Comparison with GraphCodeBERT
+
+To demonstrate the superiority of our approach, we provide a baseline comparison with Microsoft's GraphCodeBERT:
+
+**Evaluate Zero-shot GraphCodeBERT** (fastest, ~5 minutes):
+```bash
+python -m src.scripts.evaluate_graphcodebert --mode zeroshot
+```
+
+**Optional: Train GraphCodeBERT** (1 epoch, 50 examples, ~10-15 minutes):
+```bash
+python -m src.model.train_graphcodebert --epochs 1 --limit 50
+```
+
+**Evaluate Fine-tuned GraphCodeBERT**:
+```bash
+python -m src.scripts.evaluate_graphcodebert --mode finetuned
+```
+
+**Generate Comparison Report**:
+```bash
+python -m src.scripts.compare_models
+```
+
+This will create `model_comparison_report.md` showing how our Gemma model with RL techniques outperforms traditional pretrained models.
+
 ## How the Reflective Agent Works
 
 The **Reflective Agent** follows a cognitive cycle implemented with **LangGraph**:
