@@ -2,6 +2,9 @@ import networkx as nx
 import ast
 from py2cfg import CFGBuilder
 import graphviz
+import logging
+
+logger = logging.getLogger(__name__)
 
 class DefUseVisitor(ast.NodeVisitor):
     def __init__(self):
@@ -41,6 +44,7 @@ def node_to_code(node):
 def compute_control_dependencies(cfg_graph, entry_node):
     """
     Computes control dependencies using post-dominance frontiers.
+    Returns list of (controller, controlled) edges.
     """
     try:
         rev_graph = cfg_graph.reverse()
@@ -56,7 +60,10 @@ def compute_control_dependencies(cfg_graph, entry_node):
         for u, frontier in dom_frontiers.items():
             for v in frontier:
                 if u != virtual_exit and v != virtual_exit:
-                    cd_edges.append((u, v))
+                    # In dominance frontiers of reverse graph:
+                    # v is in PDF(u) means u depends on v.
+                    # v is the controller, u is the controlled.
+                    cd_edges.append((v, u))
         return cd_edges
     except Exception as e:
         print(f"Error computing control dependencies: {e}")
@@ -130,151 +137,6 @@ def compute_data_dependencies(cfg_blocks, cfg_graph):
             
     return dd_edges
 
-def visualize_cfg(code):
-    """
-    Generates a visual Control Flow Graph (CFG) from the given Python code using Graphviz.
-    """
-    try:
-        cfg_builder = CFGBuilder()
-        cfg = cfg_builder.build_from_src("input_code", code)
-        
-        dot = graphviz.Digraph(comment='Control Flow Graph')
-        dot.attr(rankdir='TB')
-        
-        all_blocks = []
-        for func_cfg in cfg.functioncfgs.values():
-            all_blocks.extend(list(func_cfg.own_blocks()))
-
-        for block in all_blocks:
-            label = f"Block {block.id}\\n"
-            statements = [node_to_code(s) for s in block.statements]
-            if len(statements) > 5:
-                label += "\\n".join(statements[:5]) + "\\n..."
-            else:
-                label += "\\n".join(statements)
-                
-            dot.node(str(block.id), label, shape='box')
-            
-            for exit in block.exits:
-                dot.edge(str(block.id), str(exit.target.id))
-                
-        return dot
-    except Exception as e:
-        err_dot = graphviz.Digraph()
-        err_dot.node('error', f"Error generating CFG: {e}")
-        return err_dot
-
-def get_cfg(code):
-    """
-    Generates a Control Flow Graph (CFG) from the given Python code.
-    """
-    try:
-        cfg_builder = CFGBuilder()
-        cfg = cfg_builder.build_from_src("input_code", code)
-
-        cfg_text = []
-        all_blocks = []
-        for func_cfg in cfg.functioncfgs.values():
-            all_blocks.extend(list(func_cfg.own_blocks()))
-
-        for block in all_blocks:
-            cfg_text.append(f"Block {block.id}:")
-            
-            # Format statements with proper indentation
-            for statement in block.statements:
-                stmt_code = node_to_code(statement)
-                # Handle multi-line statements
-                if '\n' in stmt_code:
-                    lines = stmt_code.split('\n')
-                    for line in lines:
-                        cfg_text.append(f"  {line}")
-                else:
-                    cfg_text.append(f"  {stmt_code}")
-
-            # Add exit information
-            if block.exits:
-                exits = ", ".join([str(e.target.id) for e in block.exits])
-                cfg_text.append(f"  → Exits to: {exits}")
-            
-            # Add blank line between blocks for readability
-            cfg_text.append("")
-
-        return "\n".join(cfg_text)
-
-    except Exception as e:
-        return f"Error generating CFG: {e}"
-
-def get_pdg(code):
-    """
-    Generates a Program Dependence Graph (PDG) from the given Python code.
-    Computes both Control Dependencies and Data Dependencies.
-    """
-    try:
-        cfg_builder = CFGBuilder()
-        cfg = cfg_builder.build_from_src("input_code", code)
-        
-        pdg_output = []
-
-        for func_name, func_cfg in cfg.functioncfgs.items():
-            pdg_output.append(f"Function: {func_name}")
-            pdg_output.append("=" * 60)
-            
-            blocks = list(func_cfg.own_blocks())
-            blocks.sort(key=lambda b: b.id)
-            
-            if not blocks:
-                continue
-                
-            entry_block_id = blocks[0].id
-            
-            nx_graph = nx.DiGraph()
-            
-            for block in blocks:
-                nx_graph.add_node(block.id)
-                for exit in block.exits:
-                    nx_graph.add_edge(block.id, exit.target.id)
-            
-            cd_edges = compute_control_dependencies(nx_graph, entry_block_id)
-            dd_edges = compute_data_dependencies(blocks, nx_graph)
-            
-            node_dependencies = {b.id: {'control': [], 'data': []} for b in blocks}
-            
-            for src, dest in cd_edges:
-                if dest in node_dependencies:
-                    node_dependencies[dest]['control'].append(src)
-            
-            for src, dest, var in dd_edges:
-                if dest in node_dependencies:
-                    node_dependencies[dest]['data'].append(f"{src}({var})")
-            
-            for block in blocks:
-                pdg_output.append(f"\nNode {block.id}:")
-                
-                # Format statements with proper indentation
-                for stmt in block.statements:
-                    stmt_code = node_to_code(stmt)
-                    # Handle multi-line statements
-                    if '\n' in stmt_code:
-                        lines = stmt_code.split('\n')
-                        for line in lines:
-                            pdg_output.append(f"  {line}")
-                    else:
-                        pdg_output.append(f"  {stmt_code}")
-                
-                # Add dependencies with clear labels
-                deps = node_dependencies[block.id]
-                if deps['control']:
-                    pdg_output.append(f"  ├─ Control Dependencies: {', '.join(map(str, deps['control']))}")
-                if deps['data']:
-                    pdg_output.append(f"  └─ Data Dependencies: {', '.join(deps['data'])}")
-            
-            pdg_output.append("")
-
-        return "\n".join(pdg_output)
-
-    except Exception as e:
-        return f"Error generating PDG: {e}"
-
 def extract_call_graph_edges(code):
     """
     Extracts call graph edges from the given Python code.
@@ -342,16 +204,6 @@ def get_call_graph(code):
 def get_call_graph_with_files(code, repo_graph=None):
     """
     Generates a Call Graph with file source information.
-    
-    If repo_graph is provided, looks up the file source for each called function
-    and includes it in the output (e.g., "calls foo from utils.py").
-    
-    Args:
-        code: Python code string to analyze
-        repo_graph: Optional RepoGraphBuilder instance for file lookup
-        
-    Returns:
-        str: Call graph with file information when available
     """
     try:
         calls = extract_call_graph_edges(code)
@@ -365,18 +217,14 @@ def get_call_graph_with_files(code, repo_graph=None):
                 if repo_graph and hasattr(repo_graph, 'graph'):
                     enhanced_calls = []
                     for called_func in unique_calls:
-                        # Try to find the function in the repo graph
                         file_info = _find_function_file(called_func, repo_graph)
-                        
                         if file_info:
                             enhanced_calls.append(f"{called_func} (from {file_info})")
                         else:
-                            # Function not found in repo (might be built-in or external)
                             enhanced_calls.append(called_func)
                     
                     call_graph.append(f"Function {func} calls: {', '.join(enhanced_calls)}")
                 else:
-                    # No repo_graph, use basic format
                     call_graph.append(f"Function {func} calls: {', '.join(unique_calls)}")
         
         if not call_graph:
@@ -389,79 +237,154 @@ def get_call_graph_with_files(code, repo_graph=None):
 
 
 def _find_function_file(func_name, repo_graph):
-    """
-    Helper function to find the file source of a function in the repo graph.
-    
-    Args:
-        func_name: Name of the function to find
-        repo_graph: RepoGraphBuilder instance
-        
-    Returns:
-        str: Filename (relative path if possible) if found, None otherwise
-    """
     import os
-    
-    # Helper to get display path from node data
     def get_display_path(node_data):
         relative = node_data.get('relativePath')
         if relative:
             return relative.replace(os.sep, '/')
-        
         file_path = node_data.get('file_path', '')
         if not file_path:
             return None
-            
-        # Try to compute relative if root_dir is available in repo_graph
         if hasattr(repo_graph, 'root_dir') and repo_graph.root_dir:
             try:
                 return os.path.relpath(file_path, repo_graph.root_dir).replace(os.sep, '/')
             except:
                 pass
-        
         return os.path.basename(file_path)
 
-    # Try direct match first
     if func_name in repo_graph.graph:
         return get_display_path(repo_graph.graph.nodes[func_name])
-    
-    # Try partial matches (e.g., "method" might be "Class.method")
     for node in repo_graph.graph.nodes():
         if node.endswith(f".{func_name}") or node == func_name:
             path = get_display_path(repo_graph.graph.nodes[node])
             if path:
                 return path
-    
     return None
 
+def node_to_simplified_code(node):
+    if isinstance(node, ast.AST):
+        try:
+            # Handle control structures by only printing the header
+            if isinstance(node, ast.If):
+                test = ast.unparse(node.test)
+                return f"if {test}:"
+            elif isinstance(node, ast.While):
+                test = ast.unparse(node.test)
+                return f"while {test}:"
+            elif isinstance(node, ast.For):
+                target = ast.unparse(node.target)
+                iter_ = ast.unparse(node.iter)
+                return f"for {target} in {iter_}:"
+            elif isinstance(node, ast.AsyncFor):
+                target = ast.unparse(node.target)
+                iter_ = ast.unparse(node.iter)
+                return f"async for {target} in {iter_}:"
+            elif isinstance(node, ast.FunctionDef):
+                return f"def {node.name}(...):"
+            elif isinstance(node, ast.AsyncFunctionDef):
+                return f"async def {node.name}(...):"
+            elif isinstance(node, ast.ClassDef):
+                return f"class {node.name}:"
+            elif isinstance(node, ast.With):
+                 items = ", ".join([ast.unparse(i) for i in node.items])
+                 return f"with {items}:"
+            elif isinstance(node, ast.AsyncWith):
+                 items = ", ".join([ast.unparse(i) for i in node.items])
+                 return f"async with {items}:"
+            elif isinstance(node, ast.Try):
+                return "try:"
+
+            return ast.unparse(node).strip()
+        except:
+            pass
+    return str(node).strip()
+
+def get_block_label(block):
+    """
+    Generates a descriptive label for a CFG block.
+    """
+    if not block.statements:
+        return f"Block_{block.id}"
+
+    stmt = block.statements[0]
+    lineno = getattr(stmt, 'lineno', '?')
+
+    # Try to derive a name from content
+    try:
+        code = node_to_simplified_code(stmt).split('\n')[0]
+        # Keep it short
+        if len(code) > 25:
+            code = code[:22] + "..."
+        # Sanitize for readability (allow alphanumeric and underscores)
+        clean_code = "".join(c if c.isalnum() else "_" for c in code)
+        # remove consecutive underscores
+        while "__" in clean_code:
+            clean_code = clean_code.replace("__", "_")
+        return f"line{lineno}_{clean_code}"
+    except:
+        return f"line{lineno}_block{block.id}"
 
 def get_cfg_prompt(code):
     """
-    Generates a simplified Control Flow Graph (CFG) prompt for the model.
-    Structure:
-    Block <ID>:
-      <Statements>
-      -> Exits to <ID>
+    Generates a compliant Control Flow Graph (CFG) prompt.
+    Rules:
+    - Always start: ENTRY
+    - Always end: EXIT
+    - Flow operator: -> (space-arrow-space)
+    - Condition check: check[condition]
+    - Branch: -> {TRUE: true_path | FALSE: false_path}
     """
     try:
         cfg_builder = CFGBuilder()
         cfg = cfg_builder.build_from_src("input_code", code)
 
         lines = []
-        all_blocks = []
-        for func_cfg in cfg.functioncfgs.values():
-            all_blocks.extend(list(func_cfg.own_blocks()))
-        all_blocks.sort(key=lambda b: b.id)
 
-        for block in all_blocks:
-            lines.append(f"Block {block.id}:")
-            for stmt in block.statements:
-                stmt_code = node_to_simplified_code(stmt)
-                lines.append(f"  {stmt_code}")
+        for func_name, func_cfg in cfg.functioncfgs.items():
+            lines.append(f"Function: {func_name}")
+            lines.append("Always start: ENTRY")
+
+            blocks = list(func_cfg.own_blocks())
+            blocks.sort(key=lambda b: b.id)
+
+            if not blocks:
+                lines.append("Always end: EXIT\n")
+                continue
+
+            for block in blocks:
+                stmts = [node_to_simplified_code(s) for s in block.statements]
+                block_content = ", ".join(stmts)
+
+                # Check for multiple exits (branching)
+                if len(block.exits) > 1:
+                    block_content += " check[condition]"
+
+                line = f"Block {block.id}: {block_content}"
+
+                if not block.exits:
+                    line += " -> EXIT"
+                elif len(block.exits) == 1:
+                    target = block.exits[0].target.id
+                    line += f" -> Block {target}"
+                else:
+                    # Branch handling
+                    branches = []
+                    for exit in block.exits:
+                        label = "CASE"
+                        # Handle exitcase
+                        if hasattr(exit, 'exitcase') and exit.exitcase:
+                            try:
+                                label = ast.unparse(exit.exitcase)
+                            except:
+                                label = str(exit.exitcase)
+
+                        branches.append(f"{label.upper()}: Block {exit.target.id}")
+
+                    line += " -> {" + " | ".join(branches) + "}"
+
+                lines.append(line)
             
-            if block.exits:
-                exits = ", ".join([str(e.target.id) for e in block.exits])
-                lines.append(f"  -> Exits to: {exits}")
-            lines.append("")
+            lines.append("Always end: EXIT\n")
             
         return "\n".join(lines)
     except Exception as e:
@@ -469,11 +392,12 @@ def get_cfg_prompt(code):
 
 def get_pdg_prompt(code):
     """
-    Generates a Program Dependence Graph (PDG) prompt.
-    Structure:
-    Node <ID>: <Statement>
-      <- Controlled by: <ID>
-      <- Data from: <ID>(var), ...
+    Generates a compliant Program Dependence Graph (PDG) prompt.
+    Rules:
+    - [DATA] and [CONTROL] sections
+    - Data dependency: variable->location1,location2
+    - Control dependency: statement<-condition
+    - Descriptive location naming
     """
     try:
         cfg_builder = CFGBuilder()
@@ -489,7 +413,16 @@ def get_pdg_prompt(code):
             
             if not blocks:
                 continue
-                
+
+            # 1. Compute Labels and display nodes
+            block_labels = {b.id: get_block_label(b) for b in blocks}
+
+            for block in blocks:
+                stmts = [node_to_simplified_code(s) for s in block.statements]
+                content = "; ".join(stmts)
+                lines.append(f"Node {block_labels[block.id]}: {content}")
+
+            # 2. Build Graphs
             entry_block_id = blocks[0].id
             nx_graph = nx.DiGraph()
             for block in blocks:
@@ -497,52 +430,81 @@ def get_pdg_prompt(code):
                 for exit in block.exits:
                     nx_graph.add_edge(block.id, exit.target.id)
             
+            # cd_edges: list of (controller, controlled)
             cd_edges = compute_control_dependencies(nx_graph, entry_block_id)
             dd_edges = compute_data_dependencies(blocks, nx_graph)
             
-            # Map for quick lookup
-            # dest -> set of sources
-            cd_map = {}
-            for src, dest in cd_edges:
-                if dest not in cd_map: cd_map[dest] = []
-                cd_map[dest].append(src)
-                
-            dd_map = {}
+            # 3. [CONTROL] Section
+            lines.append("\n[CONTROL]")
+            # Output: controlled <- controller
+
+            valid_ids = set(b.id for b in blocks)
+
+            for controller, controlled in cd_edges:
+                if controller in valid_ids and controlled in valid_ids:
+                    ctrl_label = block_labels[controller]
+                    stmt_label = block_labels[controlled]
+                    # Format: Statement <- Condition
+                    lines.append(f"{stmt_label} <- {ctrl_label}")
+
+            # 4. [DATA] Section
+            lines.append("\n[DATA]")
+            # Group by (src, var) -> [dests]
+            data_map = {}
             for src, dest, var in dd_edges:
-                if dest not in dd_map: dd_map[dest] = []
-                dd_map[dest].append(f"{src}({var})")
+                if src in valid_ids and dest in valid_ids:
+                    key = (src, var)
+                    if key not in data_map: data_map[key] = []
+                    data_map[key].append(dest)
             
-            for block in blocks:
-                # Basic statement representation
-                # We combine statements for the block label if multiple
-                stmts = [node_to_simplified_code(s) for s in block.statements]
-                content = "; ".join(stmts) if stmts else "<Entry/Exit>"
+            for (src, var), dests in data_map.items():
+                src_label = block_labels[src]
+                dest_labels = ", ".join([block_labels[d] for d in dests])
+                # Format: variable: def@location -> use@location1,location2
+                lines.append(f"{var}: def@{src_label} -> use@{dest_labels}")
                 
-                lines.append(f"Node {block.id}: {content}")
-                
-                # Dependencies
-                if block.id in cd_map:
-                    refs = ", ".join(map(str, sorted(cd_map[block.id])))
-                    lines.append(f"  <- Controlled by: {refs}")
-                
-                if block.id in dd_map:
-                    refs = ", ".join(sorted(dd_map[block.id]))
-                    lines.append(f"  <- Data from: {refs}")
             lines.append("")
 
         return "\n".join(lines)
     except Exception as e:
         return f"Error generating PDG prompt: {e}"
 
-def node_to_simplified_code(node):
+def visualize_cfg(code):
     """
-    Simplified version of node_to_code for prompts.
+    Generates a visual Control Flow Graph (CFG) from the given Python code using Graphviz.
     """
-    if isinstance(node, ast.AST):
-        try:
-            return ast.unparse(node).strip()
-        except:
-            pass
-    return str(node).strip()
+    try:
+        cfg_builder = CFGBuilder()
+        cfg = cfg_builder.build_from_src("input_code", code)
 
+        dot = graphviz.Digraph(comment='Control Flow Graph')
+        dot.attr(rankdir='TB')
 
+        all_blocks = []
+        for func_cfg in cfg.functioncfgs.values():
+            all_blocks.extend(list(func_cfg.own_blocks()))
+
+        for block in all_blocks:
+            label = f"Block {block.id}\\n"
+            statements = [node_to_code(s) for s in block.statements]
+            if len(statements) > 5:
+                label += "\\n".join(statements[:5]) + "\\n..."
+            else:
+                label += "\\n".join(statements)
+
+            dot.node(str(block.id), label, shape='box')
+
+            for exit in block.exits:
+                dot.edge(str(block.id), str(exit.target.id))
+
+        return dot
+    except Exception as e:
+        err_dot = graphviz.Digraph()
+        err_dot.node('error', f"Error generating CFG: {e}")
+        return err_dot
+
+def get_cfg(code):
+    return get_cfg_prompt(code)
+
+def get_pdg(code):
+    return get_pdg_prompt(code)
