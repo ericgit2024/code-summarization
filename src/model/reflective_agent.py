@@ -62,24 +62,11 @@ class ReflectiveAgent:
         
         # CRITICAL FIX: Generate natural language docstring to match CodeSearchNet dataset format
         # Dataset references are simple 1-4 sentence docstrings, NOT structured markdown
+        # SIMPLIFIED: Match CodeSearchNet docstring format (1-3 sentences, plain language)
         instruction = (
-             "Write a concise, natural language summary of this code's functionality (2-4 sentences).\n\n"
-             "Your summary should:\n"
-             "1. Explain what the code does (main purpose)\n"
-             "2. Mention key inputs, outputs, or parameters\n"
-             "3. Identify important function calls or dependencies\n\n"
-             "CRITICAL CONSTRAINTS:\n"
-             "- Write in natural language like a docstring, NOT structured markdown\n"
-             "- Do NOT use markdown headers (**, ##, ###)\n"
-             "- Do NOT use section labels (Overview, Detailed Logic, Dependency Analysis)\n"
-             "- Do NOT use bullet points or numbered lists\n"
-             "- Do NOT output Args:/Returns:/Raises: format\n"
-             "- Do NOT output the AST, CFG, PDG, or code blocks\n"
-             "- Write a flowing narrative in plain English\n\n"
-             "Example good summary:\n"
-             "\"Validates user input and creates a new product in the database. Takes product name, price, and stock level as required parameters, with optional description and category. Returns the created product object or raises ValueError if required fields are missing or invalid.\"\n\n"
-             "Example bad summary (DO NOT DO THIS):\n"
-             "\"**Overview**: This function creates products.\\n**Detailed Logic**: First it validates...\\n**Dependency Analysis**: Calls validate_input()...\""
+            "Generate a concise docstring summary for this code.\n"
+            "Write 1-3 sentences explaining what the code does.\n"
+            "Do NOT use markdown, bullet points, or structured sections."
         )
         
         summary = self.pipeline.generate_from_code(

@@ -67,12 +67,9 @@ def train(
             retrieved_codes,
             retrieved_docstrings,
             instruction=(
-                "Write a concise, natural language summary of this code's functionality (2-4 sentences).\\n\\n"
-                "Your summary should:\\n"
-                "1. Explain what the code does (main purpose)\\n"
-                "2. Mention key inputs, outputs, or parameters\\n"
-                "3. Identify important function calls or dependencies\\n\\n"
-                "Write in natural language like a docstring. Do NOT use markdown formatting, headers, or bullet points."
+                "Generate a concise docstring summary for this code.\\n"
+                "Write 1-3 sentences explaining what the code does.\\n"
+                "Do NOT use markdown, bullet points, or structured sections."
             )
         )
 

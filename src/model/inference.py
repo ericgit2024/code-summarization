@@ -201,17 +201,11 @@ class InferencePipeline:
 
     def summarize(self, code=None, function_name=None, instruction=None):
         if instruction is None:
+             # SIMPLIFIED: Match CodeSearchNet docstring format (1-3 sentences, plain language)
              instruction = (
-                 "Write a clear, natural language summary of this code's functionality.\n\n"
-                 "Your summary should:\n"
-                 "1. Start with what the code does (1-2 sentences)\n"
-                 "2. Explain the main logic and control flow\n"
-                 "3. List any function calls and their purposes\n\n"
-                 "Write in complete sentences, not bullet points or docstring format.\n"
-                 "Do NOT repeat the same information multiple times.\n"
-                 "Do NOT output structural analysis (AST/CFG/PDG) - use that information to inform your summary.\n"
-                 "Do NOT write in docstring format with 'Args:', 'Returns:', etc.\n\n"
-                 "Write a flowing narrative summary in plain English."
+                 "Generate a concise docstring summary for this code.\\n"
+                 "Write 1-3 sentences explaining what the code does.\\n"
+                 "Do NOT use markdown, bullet points, or structured sections."
              )
 
         repo_context = None

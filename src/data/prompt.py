@@ -28,18 +28,12 @@ def construct_prompt(structural_prompt, query_code, retrieved_codes, retrieved_d
     """
     Combines structural prompt, retrieved examples, and target code into a single prompt string.
     """
-    # Default instruction if none provided
+    # SIMPLIFIED: Match CodeSearchNet docstring format (1-3 sentences, plain language)
     if not instruction:
         instruction = (
-            "You are an expert code summarizer. Your task is to write a comprehensive natural language summary "
-            "of the 'Target Code' provided below.\n\n"
-            "CRITICAL: You MUST incorporate the 'Repository Dependency Context' into your summary. "
-            "Explain how this function fits into the broader system by explicitly mentioning:\n"
-            "1. Which functions call this function (its usage context).\n"
-            "2. Which key functions this function calls (its dependencies).\n"
-            "3. The core logic of the function itself.\n\n"
-            "Do not list these as bullet points. Weave them into a single, cohesive narrative paragraph. "
-            "Focus on the flow of data and control."
+            "Generate a concise docstring summary for this code.\\n"
+            "Write 1-3 sentences explaining what the code does.\\n"
+            "Do NOT use markdown, bullet points, or structured sections."
         )
 
     prompt = f"### Instruction\n{instruction}\n\n"
