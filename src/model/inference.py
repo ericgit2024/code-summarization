@@ -354,8 +354,8 @@ class InferencePipeline:
         with torch.no_grad():
             outputs = self.model.generate(
                 **inputs,
-                max_new_tokens=300,
-                min_new_tokens=50,
+                max_new_tokens=150,  # Reduced from 300 to match reference length (typically 50-100 tokens)
+                min_new_tokens=30,   # Reduced from 50 to allow shorter summaries
                 do_sample=True,
                 temperature=0.3,
                 top_p=0.9,

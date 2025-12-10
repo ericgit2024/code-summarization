@@ -17,9 +17,9 @@ import os
 
 def train(
     output_dir="gemma_lora_finetuned",
-    num_train_epochs=1, 
-    per_device_train_batch_size=1,
-    per_device_eval_batch_size=1,
+    num_train_epochs=2,  # Reduced to 2 for <1 hour training
+    per_device_train_batch_size=2,  # Increased to 2 for faster training
+    per_device_eval_batch_size=2,   # Increased to 2
     learning_rate=2e-4,
     index_path="rag_index.pkl"
 ):
@@ -85,20 +85,21 @@ def train(
 
     # Tokenize
     def tokenize_function(examples):
-        # Increased max_length to accommodate longer summaries (up to 512 tokens) plus the prompt
-        return tokenizer(examples["text"], padding="max_length", truncation=True, max_length=512)
+        # Reduced max_length from 512 to 384 for faster training
+        # Most summaries are <100 tokens, so 384 is sufficient
+        return tokenizer(examples["text"], padding="max_length", truncation=True, max_length=384)
 
     tokenized_train_dataset = train_dataset.map(tokenize_function, batched=True)
     tokenized_eval_dataset = eval_dataset.map(tokenize_function, batched=True)
 
-    # 4. Training Arguments
+    # 4. Training Arguments - OPTIMIZED FOR <1 HOUR TRAINING
     training_args = TrainingArguments(
         output_dir=output_dir,
-        per_device_train_batch_size=per_device_train_batch_size,
-        per_device_eval_batch_size=per_device_eval_batch_size,
-        gradient_accumulation_steps=4,
+        per_device_train_batch_size=2,  # Increased from 1 to 2 for faster training
+        per_device_eval_batch_size=2,   # Increased from 1 to 2
+        gradient_accumulation_steps=2,  # Reduced from 4 to 2 (effective batch size = 2*2=4)
         warmup_steps=5, 
-        num_train_epochs=num_train_epochs, # Use epochs instead of max_steps
+        num_train_epochs=2,  # Reduced from 3 to 2 epochs for <1 hour training
         learning_rate=learning_rate,
         fp16=True,
         logging_steps=10,

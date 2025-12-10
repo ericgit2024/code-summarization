@@ -97,9 +97,11 @@ def load_and_process_dataset(split="train"):
     # Filter
     dataset = dataset.filter(is_valid_example)
     
-    # Limit to ~3000 to reduce training time (approx 2550 train + 450 val with 85/15 split)
+    # Randomly sample 3000 examples for better diversity (not just first 3000)
+    import random
     if len(dataset) > 3000:
-        dataset = dataset.select(range(3000))
+        indices = random.sample(range(len(dataset)), 3000)
+        dataset = dataset.select(sorted(indices))  # Sort to maintain some order
 
     # Log dataset statistics
     logger.info(f"Dataset statistics after filtering:")
