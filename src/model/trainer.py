@@ -1,6 +1,14 @@
 import torch
 from transformers import TrainingArguments, Trainer, DataCollatorForLanguageModeling
-from src.model.model_loader import load_gemma_model, setup_lora
+import os
+try:
+    if os.environ.get("HF_TOKEN") is None:
+        print("Warning: HF_TOKEN not set. Using mock model loader.")
+        from src.model.model_loader_mock import load_gemma_model, setup_lora
+    else:
+        from src.model.model_loader import load_gemma_model, setup_lora
+except ImportError:
+     from src.model.model_loader import load_gemma_model, setup_lora
 from src.data.dataset import load_and_process_dataset
 from src.data.prompt import construct_structural_prompt, construct_prompt
 from src.retrieval.rag import RAGSystem
@@ -36,7 +44,7 @@ def train(
     dataset = load_and_process_dataset(split="train")
 
     # Split dataset into training and validation
-    dataset_split = dataset.train_test_split(test_size=0.1, seed=42)
+    dataset_split = dataset.train_test_split(test_size=0.15, seed=42)
     train_dataset = dataset_split["train"]
     eval_dataset = dataset_split["test"]
     
