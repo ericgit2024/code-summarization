@@ -63,14 +63,16 @@ def calculate_structural_accuracy(code, generated_summary, reference_context=Non
 
     return score
 
-def compute_metrics(predictions, references, code_snippets=None):
+def compute_metrics(predictions, references, code_snippets=None, full_predictions=None):
     """
     Computes BLEU, ROUGE, METEOR, Semantic Similarity, and optionally Structural Accuracy scores.
     
     Args:
-        predictions: List of generated summaries
+        predictions: List of generated summaries (cleaned/shortened for text metrics)
         references: List of reference summaries
         code_snippets: Optional list of source code snippets for structural analysis
+        full_predictions: Optional list of full generated summaries (for structural analysis)
+                          If not provided, uses 'predictions'.
     """
     bleu_metric = evaluate.load("bleu")
     rouge_metric = evaluate.load("rouge")
@@ -94,10 +96,13 @@ def compute_metrics(predictions, references, code_snippets=None):
     # Structural Accuracy Score (if code snippets provided)
     structural_scores = []
     if code_snippets is not None:
-        if len(code_snippets) != len(predictions):
-            logger.warning(f"Code snippets count ({len(code_snippets)}) doesn't match predictions count ({len(predictions)})")
+        # Use full_predictions if available, else predictions
+        sas_predictions = full_predictions if full_predictions else predictions
+
+        if len(code_snippets) != len(sas_predictions):
+            logger.warning(f"Code snippets count ({len(code_snippets)}) doesn't match predictions count ({len(sas_predictions)})")
         else:
-            for code, prediction in zip(code_snippets, predictions):
+            for code, prediction in zip(code_snippets, sas_predictions):
                 sas = calculate_structural_accuracy(code, prediction)
                 structural_scores.append(sas)
     

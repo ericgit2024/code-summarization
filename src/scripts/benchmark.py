@@ -1,6 +1,7 @@
 from src.model.inference import InferencePipeline
 from src.data.dataset import load_and_process_dataset
 from src.utils.metrics import compute_metrics
+from src.utils.text_utils import extract_overview
 from tqdm import tqdm
 
 def run_benchmark(num_samples=20):
@@ -16,6 +17,7 @@ def run_benchmark(num_samples=20):
     pipeline = InferencePipeline()
 
     predictions = []
+    full_predictions = []
     references = []
     codes = []
 
@@ -28,12 +30,16 @@ def run_benchmark(num_samples=20):
         # Generate summary
         summary = pipeline.summarize(code)
 
-        predictions.append(summary)
+        # Extract Overview for fair comparison with docstrings
+        clean_summary = extract_overview(summary)
+
+        predictions.append(clean_summary)
+        full_predictions.append(summary)
         references.append(reference)
         codes.append(code)
 
     print("Computing metrics...")
-    metrics = compute_metrics(predictions, references, code_snippets=codes)
+    metrics = compute_metrics(predictions, references, code_snippets=codes, full_predictions=full_predictions)
 
     print("\nBenchmark Results:")
     for key, value in metrics.items():
