@@ -61,6 +61,6 @@ def construct_prompt(structural_prompt, query_code, retrieved_codes, retrieved_d
     # Target Code
     prompt += f"### Target Code\n{query_code}\n\n"
     
-    # Output Indicator
-    prompt += "### Natural Language Summary\n"
+    # Output Indicator - REMOVED to prevent model from copying this label
+    # The model should generate the summary directly without seeing "Natural Language Summary:"
     return prompt

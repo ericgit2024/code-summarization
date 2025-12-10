@@ -54,10 +54,12 @@ def train(
     def format_prompt(example):
         structural_prompt = construct_structural_prompt(example['code'])
 
+        # DISABLE RAG during training to prevent contamination
+        # The model was copying retrieved examples into its output
         retrieved_codes = []
         retrieved_docstrings = []
-        if rag_system:
-            retrieved_codes, retrieved_docstrings, _ = rag_system.retrieve(example['code'], k=1)
+        # if rag_system:
+        #     retrieved_codes, retrieved_docstrings, _ = rag_system.retrieve(example['code'], k=1)
 
         full_prompt = construct_prompt(
             structural_prompt,
