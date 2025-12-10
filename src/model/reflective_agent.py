@@ -65,7 +65,9 @@ class ReflectiveAgent:
              "Provide a comprehensive and structured summary of the code's functionality.\n"
              "The output MUST be organized into the following sections using Markdown headers:\n"
              "1. **Overview**: A high-level explanation of what the code does.\n"
-             "2. **Detailed Logic**: A step-by-step breakdown of the operations, inputs, and outputs.\n"
+             "2. **Detailed Logic**: A step-by-step breakdown of the operations, inputs, and outputs. **Use the provided 'Structural Analysis' (AST, CFG, PDG) to explain the code's flow:**\n"
+             "   - Mention specific conditions and branches identified in the Control Flow Graph (CFG).\n"
+             "   - Explain data transformations and dependencies identified in the Program Dependence Graph (PDG).\n"
              "3. **Dependency Analysis**: **CRITICAL REQUIREMENT** - You MUST identify and list ALL function calls made within this code.\n"
              "   - First, scan the code and identify every function call (e.g., service.method(), function_name(), etc.)\n"
              "   - For EACH function call, provide:\n"
@@ -75,6 +77,7 @@ class ReflectiveAgent:
              "   - If no function calls are present, explicitly state 'This function makes no external function calls.'\n"
              "   - Example format: 'This function calls: 1) get_customer_by_id() from CustomerService to retrieve customer data, 2) get_product_by_id() from ProductService to fetch product details, 3) update_stock() from Product to modify inventory levels.'\n\n"
              "Ensure the content is detailed and thorough."
+             "\n\n**CRITICAL NEGATIVE CONSTRAINT**: Do NOT output the AST, CFG, PDG, or any code blocks representing the structural analysis. These are provided for your understanding only. You should use the *information* from them to improve your summary (e.g. 'The control flow indicates...'), but do not copy the raw AST/CFG/PDG text."
         )
         
         summary = self.pipeline.generate_from_code(
