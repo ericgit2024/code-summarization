@@ -97,9 +97,9 @@ def load_and_process_dataset(split="train"):
     # Filter
     dataset = dataset.filter(is_valid_example)
     
-    # Limit to ~18000 to satisfy the size constraint (approx 15k train + 2.7k val)
-    if len(dataset) > 18000:
-        dataset = dataset.select(range(18000))
+    # Limit to ~3000 to reduce training time (approx 2550 train + 450 val with 85/15 split)
+    if len(dataset) > 3000:
+        dataset = dataset.select(range(3000))
 
     # Log dataset statistics
     logger.info(f"Dataset statistics after filtering:")
