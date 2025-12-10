@@ -19,9 +19,79 @@ from peft import PeftModel
 import pickle
 import os
 import torch
+import re
+import json
 from src.structure.ast_analyzer import ASTAnalyzer
 from unittest.mock import MagicMock
 from src.model.reflective_agent import ReflectiveAgent
+
+def clean_summary_for_evaluation(text):
+    """
+    Removes structured formatting (markdown, JSON, section headers) from generated summaries
+    to match the natural language format of reference docstrings.
+    
+    Args:
+        text: Generated summary text (may contain markdown, JSON, or structured sections)
+        
+    Returns:
+        Clean natural language summary suitable for BLEU/ROUGE evaluation
+    """
+    if not text or len(text) < 5:
+        return text
+    
+    original_text = text
+    
+    # Step 1: Remove JSON wrapper if present
+    if text.strip().startswith('{') and '"docstring"' in text:
+        try:
+            # Try to parse as JSON
+            data = json.loads(text)
+            text = data.get('docstring', text)
+        except (json.JSONDecodeError, ValueError):
+            # If JSON parsing fails, try regex extraction
+            match = re.search(r'"docstring"\s*:\s*"([^"]+)"', text)
+            if match:
+                text = match.group(1)
+    
+    # Step 2: Remove markdown bold/italic formatting
+    text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)  # **text** -> text
+    text = re.sub(r'\*([^*]+)\*', r'\1', text)      # *text* -> text
+    
+    # Step 3: Remove markdown headers
+    text = re.sub(r'#+\s+', '', text)  # ## Header -> Header
+    
+    # Step 4: Remove section markers (case-insensitive)
+    section_markers = [
+        r'Overview:?\s*',
+        r'Detailed Logic:?\s*',
+        r'Dependency Analysis:?\s*',
+        r'Natural Language Overview:?\s*',
+        r'Natural Language Summary:?\s*',
+        r'Target Code Examples?:?\s*',
+        r'Example \d+:?\s*'
+    ]
+    for marker in section_markers:
+        text = re.sub(marker, '', text, flags=re.IGNORECASE)
+    
+    # Step 5: Remove docstring-style formatting (Args:, Returns:, Raises:)
+    # But keep the content after them
+    text = re.sub(r'\b(Args?|Returns?|Raises?|Parameters?|Yields?|Notes?|Examples?):?\s*', '', text, flags=re.IGNORECASE)
+    
+    # Step 6: Remove code blocks
+    text = re.sub(r'```[^`]*```', '', text, flags=re.DOTALL)
+    text = re.sub(r'`([^`]+)`', r'\1', text)  # Inline code
+    
+    # Step 7: Collapse multiple whitespaces and newlines into single spaces
+    text = re.sub(r'\s+', ' ', text)
+    
+    # Step 8: Remove leading/trailing whitespace
+    text = text.strip()
+    
+    # Step 9: If we ended up with empty text, return original
+    if not text or len(text) < 10:
+        return original_text
+    
+    return text
 
 class InferencePipeline:
     def __init__(self, model_dir="gemma_lora_finetuned", index_path="rag_index.pkl", repo_path=None, allow_mock=False, model_type="gemma"):
@@ -284,8 +354,15 @@ class InferencePipeline:
         
         summary = self.tokenizer.decode(generated_tokens, skip_special_tokens=True).strip()
         
-        print(f"Generated summary length: {len(summary)} chars")
-        print(f"Generated summary (first 300 chars):\n{summary[:300]}")
+        print(f"Generated summary length (raw): {len(summary)} chars")
+        print(f"Generated summary (raw, first 300 chars):\n{summary[:300]}")
+        
+        # POST-PROCESSING: Clean summary for evaluation
+        # Remove structured formatting (markdown, JSON, section headers) to match reference format
+        summary = clean_summary_for_evaluation(summary)
+        
+        print(f"Generated summary length (cleaned): {len(summary)} chars")
+        print(f"Generated summary (cleaned):\n{summary}")
         
         if not summary or len(summary) < 10:
             print("WARNING: Generated summary is empty or too short!")

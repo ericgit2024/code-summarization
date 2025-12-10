@@ -60,24 +60,26 @@ class ReflectiveAgent:
     def generate_summary(self, state: AgentState):
         logger.info(f"Generating initial summary for {state['function_name']}...")
         
-        # Use the detailed instruction consistent with the inference pipeline
+        # CRITICAL FIX: Generate natural language docstring to match CodeSearchNet dataset format
+        # Dataset references are simple 1-4 sentence docstrings, NOT structured markdown
         instruction = (
-             "Provide a comprehensive and structured summary of the code's functionality.\n"
-             "The output MUST be organized into the following sections using Markdown headers:\n"
-             "1. **Overview**: A high-level explanation of what the code does.\n"
-             "2. **Detailed Logic**: A step-by-step breakdown of the operations, inputs, and outputs. **Use the provided 'Structural Analysis' (AST, CFG, PDG) to explain the code's flow:**\n"
-             "   - Mention specific conditions and branches identified in the Control Flow Graph (CFG).\n"
-             "   - Explain data transformations and dependencies identified in the Program Dependence Graph (PDG).\n"
-             "3. **Dependency Analysis**: **CRITICAL REQUIREMENT** - You MUST identify and list ALL function calls made within this code.\n"
-             "   - First, scan the code and identify every function call (e.g., service.method(), function_name(), etc.)\n"
-             "   - For EACH function call, provide:\n"
-             "     a) The function name and how it's called (e.g., 'customer_service.get_customer_by_id(customer_id)')\n"
-             "     b) The purpose of this function call based on the 'Dependency Context' or code context\n"
-             "     c) The source file if available in the format 'from filename.py' (e.g., 'CustomerService.get_customer_by_id() from customer_service.py')\n"
-             "   - If no function calls are present, explicitly state 'This function makes no external function calls.'\n"
-             "   - Example format: 'This function calls: 1) get_customer_by_id() from CustomerService to retrieve customer data, 2) get_product_by_id() from ProductService to fetch product details, 3) update_stock() from Product to modify inventory levels.'\n\n"
-             "Ensure the content is detailed and thorough."
-             "\n\n**CRITICAL NEGATIVE CONSTRAINT**: Do NOT output the AST, CFG, PDG, or any code blocks representing the structural analysis. These are provided for your understanding only. You should use the *information* from them to improve your summary (e.g. 'The control flow indicates...'), but do not copy the raw AST/CFG/PDG text."
+             "Write a concise, natural language summary of this code's functionality (2-4 sentences).\n\n"
+             "Your summary should:\n"
+             "1. Explain what the code does (main purpose)\n"
+             "2. Mention key inputs, outputs, or parameters\n"
+             "3. Identify important function calls or dependencies\n\n"
+             "CRITICAL CONSTRAINTS:\n"
+             "- Write in natural language like a docstring, NOT structured markdown\n"
+             "- Do NOT use markdown headers (**, ##, ###)\n"
+             "- Do NOT use section labels (Overview, Detailed Logic, Dependency Analysis)\n"
+             "- Do NOT use bullet points or numbered lists\n"
+             "- Do NOT output Args:/Returns:/Raises: format\n"
+             "- Do NOT output the AST, CFG, PDG, or code blocks\n"
+             "- Write a flowing narrative in plain English\n\n"
+             "Example good summary:\n"
+             "\"Validates user input and creates a new product in the database. Takes product name, price, and stock level as required parameters, with optional description and category. Returns the created product object or raises ValueError if required fields are missing or invalid.\"\n\n"
+             "Example bad summary (DO NOT DO THIS):\n"
+             "\"**Overview**: This function creates products.\\n**Detailed Logic**: First it validates...\\n**Dependency Analysis**: Calls validate_input()...\""
         )
         
         summary = self.pipeline.generate_from_code(
@@ -230,15 +232,15 @@ class ReflectiveAgent:
     def refine_summary(self, state: AgentState):
         logger.info("Refining summary with new context...")
         
-        # Simplified prompt to avoid model confusion
+        # Simplified prompt to generate natural language (consistent with dataset format)
         prompt = (
-            f"Improve this code summary by addressing the following feedback: {state['critique']}\n\n"
+            f"Improve this code summary by addressing the feedback: {state['critique']}\n\n"
             f"Code:\n```python\n{state['code']}\n```\n\n"
             f"Current Summary:\n{state['summary']}\n\n"
-            f"Write an improved summary with these sections:\n"
-            f"1. **Overview**: What the code does\n"
-            f"2. **Detailed Logic**: Step-by-step explanation\n"
-            f"3. **Dependency Analysis**: How it interacts with other functions\n\n"
+            f"Write an improved summary as a natural language paragraph (2-4 sentences).\n"
+            f"Focus on: (1) what the code does, (2) key inputs/outputs, (3) important function calls.\n"
+            f"Do NOT use markdown headers, bullet points, or structured sections.\n"
+            f"Write like a docstring in plain English.\n\n"
             f"Improved Summary:"
         )
         

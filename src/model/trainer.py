@@ -64,7 +64,14 @@ def train(
             example['code'],
             retrieved_codes,
             retrieved_docstrings,
-            instruction="Summarize the code's functionality clearly and concisely by explaining the inputs, outputs, and internal logic step-by-step. Describe how the function interacts with its dependencies and the significance of each operation."
+            instruction=(
+                "Write a concise, natural language summary of this code's functionality (2-4 sentences).\\n\\n"
+                "Your summary should:\\n"
+                "1. Explain what the code does (main purpose)\\n"
+                "2. Mention key inputs, outputs, or parameters\\n"
+                "3. Identify important function calls or dependencies\\n\\n"
+                "Write in natural language like a docstring. Do NOT use markdown formatting, headers, or bullet points."
+            )
         )
 
         # Gemma chat format or simple completion?
