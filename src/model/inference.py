@@ -264,7 +264,7 @@ class InferencePipeline:
         with torch.no_grad():
             outputs = self.model.generate(
                 **inputs,
-                max_new_tokens=2048,
+                max_new_tokens=512,
                 do_sample=True,
                 temperature=0.2,
                 repetition_penalty=1.2,
