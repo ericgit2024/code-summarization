@@ -262,52 +262,70 @@ class ASTPromptGenerator(ast.NodeVisitor):
             self.visit(item)
             
     def visit_FunctionDef(self, node):
-        args = ", ".join([a.arg for a in node.args.args])
-        self._log(f"Function: {node.name}({args}) [Line {node.lineno}]")
+        # Function definition: func(param1,param2,...)
+        args = ",".join([a.arg for a in node.args.args])
+        self._log(f"Function definition: {node.name}({args})")
         self.indent()
         for item in node.body:
             self.visit(item)
         self.dedent()
         
     def visit_AsyncFunctionDef(self, node):
-        args = ", ".join([a.arg for a in node.args.args])
-        self._log(f"AsyncFunction: {node.name}({args}) [Line {node.lineno}]")
+        # Function definition: func(param1,param2,...)
+        args = ",".join([a.arg for a in node.args.args])
+        self._log(f"Function definition: {node.name}({args})")
         self.indent()
         for item in node.body:
             self.visit(item)
         self.dedent()
         
     def visit_ClassDef(self, node):
-        self._log(f"Class: {node.name} [Line {node.lineno}]")
+        self._log(f"Class: {node.name}")
         self.indent()
         for item in node.body:
             self.visit(item)
         self.dedent()
         
     def visit_Return(self, node):
+        # Return: return(value)
         val = self._get_source(node.value) if node.value else "None"
-        self._log(f"Return: {val}")
+        self._log(f"Return: return({val})")
         
     def visit_Assign(self, node):
+        # Variable assignment: assign(variable=expression)
         targets = ", ".join([self._get_source(t) for t in node.targets])
         val = self._get_source(node.value)
-        self._log(f"Assign: {targets} = {val}")
+        self._log(f"Variable assignment: assign({targets}={val})")
         
     def visit_AugAssign(self, node):
+        # Treat as assignment: assign(variable=expression)
         target = self._get_source(node.target)
         val = self._get_source(node.value)
         op = type(node.op).__name__
-        self._log(f"AugAssign: {target} {op}= {val}")
+        # x += 1 -> assign(x=x+1) conceptually, but using op
+        # Let's format as assign(target op= val) or just assign(target=...)
+        # User spec: assign(variable=expression)
+        # We can say assign(x=x+1) if we want to be strict, or assign(x+=1)
+        # Let's try to match the spirit: assign(x+=1)
+        op_map = {
+            'Add': '+=', 'Sub': '-=', 'Mult': '*=', 'Div': '/=', 'Mod': '%=',
+            'Pow': '**=', 'LShift': '<<=', 'RShift': '>>=', 'BitOr': '|=',
+            'BitXor': '^=', 'BitAnd': '&=', 'FloorDiv': '//=', 'MatMult': '@='
+        }
+        op_str = op_map.get(op, '+=') # Fallback
+        self._log(f"Variable assignment: assign({target}{op_str}{val})")
 
     def visit_AnnAssign(self, node):
+        # Variable assignment: assign(variable=expression)
         target = self._get_source(node.target)
         val = self._get_source(node.value) if node.value else "None"
-        self._log(f"AnnAssign: {target} = {val}")
+        self._log(f"Variable assignment: assign({target}={val})")
 
     def visit_For(self, node):
+        # For loop: for(var in iterable)->body
         target = self._get_source(node.target)
         iter_ = self._get_source(node.iter)
-        self._log(f"For: {target} in {iter_}")
+        self._log(f"For loop: for({target} in {iter_})->")
         self.indent()
         for item in node.body:
             self.visit(item)
@@ -316,29 +334,32 @@ class ASTPromptGenerator(ast.NodeVisitor):
     def visit_AsyncFor(self, node):
         target = self._get_source(node.target)
         iter_ = self._get_source(node.iter)
-        self._log(f"AsyncFor: {target} in {iter_}")
+        self._log(f"For loop: for({target} in {iter_})->")
         self.indent()
         for item in node.body:
             self.visit(item)
         self.dedent()
 
     def visit_While(self, node):
+        # While loop: while(condition)->body
         test = self._get_source(node.test)
-        self._log(f"While: {test}")
+        self._log(f"While loop: while({test})->")
         self.indent()
         for item in node.body:
             self.visit(item)
         self.dedent()
         
     def visit_If(self, node):
+        # If statement: if(condition)->true_branch | false_branch
         test = self._get_source(node.test)
-        self._log(f"If: {test}")
+        self._log(f"If statement: if({test})->")
         self.indent()
         for item in node.body:
             self.visit(item)
         self.dedent()
+
         if node.orelse:
-            self._log("Else:")
+            self._log("|")
             self.indent()
             for item in node.orelse:
                 self.visit(item)
@@ -387,11 +408,12 @@ class ASTPromptGenerator(ast.NodeVisitor):
             self.dedent()
             
     def visit_Expr(self, node):
-        # Only log actual calls or meantingful expressions
+        # Chain statements: -> (implicit in line order?)
+        # Just log the expression if it's not a docstring
         if isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
             pass
         else:
-            self._log(f"Expr: {self._get_source(node.value)}")
+            self._log(f"{self._get_source(node.value)}")
 
     def _get_source(self, node):
         if node is None:
@@ -411,4 +433,3 @@ def get_ast_prompt(code):
         return generator.generate(tree)
     except Exception as e:
         return f"Error generating AST prompt: {e}"
-
