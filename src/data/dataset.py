@@ -36,7 +36,7 @@ def is_valid_example(example):
     if code_len < 10 or code_len > 500:
         return False
 
-    if summary_len < 3 or summary_len > 128:
+    if summary_len < 3 or summary_len > 512:
         return False
 
     try:

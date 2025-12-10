@@ -1,4 +1,5 @@
 from unittest.mock import MagicMock
+import torch
 import torch.nn as nn
 
 class MockModel(nn.Module):

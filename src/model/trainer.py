@@ -79,7 +79,8 @@ def train(
 
     # Tokenize
     def tokenize_function(examples):
-        return tokenizer(examples["text"], padding="max_length", truncation=True, max_length=512)
+        # Increased max_length to accommodate longer summaries (up to 512 tokens) plus the prompt
+        return tokenizer(examples["text"], padding="max_length", truncation=True, max_length=1536)
 
     tokenized_train_dataset = train_dataset.map(tokenize_function, batched=True)
     tokenized_eval_dataset = eval_dataset.map(tokenize_function, batched=True)
