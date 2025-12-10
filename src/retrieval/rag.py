@@ -6,10 +6,10 @@ import logging
 logger = logging.getLogger(__name__)
 
 class RAGSystem:
-    def __init__(self, model_name='microsoft/codebert-base'):
+    def __init__(self, model_name='microsoft/unixcoder-base'):
         """
         Initializes RAG system with a code-specific embedding model.
-        Falls back to all-MiniLM if codebert is not available/fails (though sentence-transformers handles download).
+        Falls back to all-MiniLM if unixcoder is not available/fails.
         """
         try:
             self.encoder_model = SentenceTransformer(model_name)

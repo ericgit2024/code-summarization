@@ -1,11 +1,23 @@
 from unittest.mock import MagicMock
 import torch
 import torch.nn as nn
+from transformers import PretrainedConfig
+
+class MockConfig(PretrainedConfig):
+    """Mock configuration that can be serialized by TensorBoard"""
+    model_type = "mock_gemma"
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.vocab_size = 256000
+        self.hidden_size = 2048
+        self.num_hidden_layers = 18
+        self.num_attention_heads = 8
 
 class MockModel(nn.Module):
     def __init__(self):
         super().__init__()
-        self.config = MagicMock()
+        self.config = MockConfig()
         self.peft_config = None
         self.tp_size = None
 
