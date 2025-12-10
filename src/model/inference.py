@@ -102,22 +102,16 @@ class InferencePipeline:
     def summarize(self, code=None, function_name=None, instruction=None):
         if instruction is None:
              instruction = (
-                 "Provide a comprehensive and structured summary of the code's functionality.\n"
-                 "The output MUST be organized into the following sections using Markdown headers:\n"
-                 "1. **Overview**: A high-level explanation of what the code does.\n"
-                 "2. **Detailed Logic**: A step-by-step breakdown of the operations, inputs, and outputs. **Use the provided 'Structural Analysis' (AST, CFG, PDG) to explain the code's flow:**\n"
-                 "   - Mention specific conditions and branches identified in the Control Flow Graph (CFG).\n"
-                 "   - Explain data transformations and dependencies identified in the Program Dependence Graph (PDG).\n"
-                 "3. **Dependency Analysis**: **CRITICAL REQUIREMENT** - You MUST identify and list ALL function calls made within this code.\n"
-                 "   - First, scan the code and identify every function call (e.g., service.method(), function_name(), etc.)\n"
-                 "   - For EACH function call, provide:\n"
-                 "     a) The function name and how it's called (e.g., 'customer_service.get_customer_by_id(customer_id)')\n"
-                 "     b) The purpose of this function call based on the 'Dependency Context' or code context\n"
-                 "     c) The source file if available in the format 'from filename.py' (e.g., 'CustomerService.get_customer_by_id() from customer_service.py')\n"
-                 "   - If no function calls are present, explicitly state 'This function makes no external function calls.'\n"
-                 "   - Example format: 'This function calls: 1) get_customer_by_id() from CustomerService to retrieve customer data, 2) get_product_by_id() from ProductService to fetch product details, 3) update_stock() from Product to modify inventory levels.'\n\n"
-                 "Ensure the content is detailed and thorough."
-                 "\n\n**CRITICAL NEGATIVE CONSTRAINT**: Do NOT output the AST, CFG, PDG, or any code blocks representing the structural analysis. These are provided for your understanding only. You should use the *information* from them to improve your summary (e.g. 'The control flow indicates...'), but do not copy the raw AST/CFG/PDG text."
+                 "Write a clear, natural language summary of this code's functionality.\n\n"
+                 "Your summary should:\n"
+                 "1. Start with what the code does (1-2 sentences)\n"
+                 "2. Explain the main logic and control flow\n"
+                 "3. List any function calls and their purposes\n\n"
+                 "Write in complete sentences, not bullet points or docstring format.\n"
+                 "Do NOT repeat the same information multiple times.\n"
+                 "Do NOT output structural analysis (AST/CFG/PDG) - use that information to inform your summary.\n"
+                 "Do NOT write in docstring format with 'Args:', 'Returns:', etc.\n\n"
+                 "Write a flowing narrative summary in plain English."
              )
 
         repo_context = None
@@ -266,11 +260,16 @@ class InferencePipeline:
         with torch.no_grad():
             outputs = self.model.generate(
                 **inputs,
-                max_new_tokens=512,
+                max_new_tokens=300,
+                min_new_tokens=50,
                 do_sample=True,
-                temperature=0.2,
-                repetition_penalty=1.2,
-                pad_token_id=self.tokenizer.eos_token_id
+                temperature=0.3,
+                top_p=0.9,
+                repetition_penalty=1.5,
+                no_repeat_ngram_size=3,
+                early_stopping=True,
+                pad_token_id=self.tokenizer.eos_token_id,
+                eos_token_id=self.tokenizer.eos_token_id
             )
 
         # Decode output
@@ -299,6 +298,22 @@ class InferencePipeline:
             for line in prompt_lines:
                 if len(line) > 50 and line in summary:
                     print(f"WARNING: Detected prompt echo in output. Line: {line[:100]}")
+        
+        # Validation: Detect repetitive patterns (e.g., repeated docstrings)
+        if summary and len(summary) > 100:
+            # Check for repeated phrases
+            words = summary.split()
+            if len(words) > 20:
+                # Check if the same 10-word sequence appears multiple times
+                for i in range(len(words) - 10):
+                    phrase = ' '.join(words[i:i+10])
+                    count = summary.count(phrase)
+                    if count > 2:
+                        print(f"WARNING: Detected repetitive pattern (appears {count} times): {phrase[:80]}...")
+                        # Try to extract just the first occurrence
+                        first_occurrence_end = summary.find(phrase) + len(phrase)
+                        summary = summary[:first_occurrence_end * 2]  # Keep roughly 2x the first pattern
+                        break
         
         # Validation: Ensure minimum quality
         if not summary or len(summary) < 20:
