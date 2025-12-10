@@ -41,26 +41,56 @@ def clean_summary_for_evaluation(text):
     
     original_text = text
     
-    # Step 1: Remove JSON wrapper if present
-    if text.strip().startswith('{') and '"docstring"' in text:
+    # Step 1: Handle Python dict literals (e.g., {'doc': "text"} or {'body': "text"})
+    # This is more aggressive than JSON parsing
+    if '{' in text and ':' in text:
+        # Try to extract content from dict-like structures
+        # Look for patterns like {'key': "value"} or {"key": "value"}
+        import ast
+        try:
+            # Try to parse as Python literal
+            parsed = ast.literal_eval(text)
+            if isinstance(parsed, dict):
+                # Extract the first string value we find
+                for key in ['doc', 'docstring', 'summary', 'description', 'body']:
+                    if key in parsed and isinstance(parsed[key], str):
+                        text = parsed[key]
+                        break
+                else:
+                    # Just take the first string value
+                    for value in parsed.values():
+                        if isinstance(value, str):
+                            text = value
+                            break
+        except (ValueError, SyntaxError):
+            pass
+    
+    # Step 2: Remove JSON wrapper if present (fallback if ast.literal_eval failed)
+    if text.strip().startswith('{') and '"docstring"' in text or '"doc"' in text:
         try:
             # Try to parse as JSON
             data = json.loads(text)
-            text = data.get('docstring', text)
+            # Try common keys
+            for key in ['docstring', 'doc', 'summary', 'description']:
+                if key in data:
+                    text = data[key]
+                    break
         except (json.JSONDecodeError, ValueError):
             # If JSON parsing fails, try regex extraction
-            match = re.search(r'"docstring"\s*:\s*"([^"]+)"', text)
-            if match:
-                text = match.group(1)
+            for pattern in [r'"docstring"\s*:\s*"([^"]+)"', r'"doc"\s*:\s*"([^"]+)"', r'"summary"\s*:\s*"([^"]+)"']:
+                match = re.search(pattern, text)
+                if match:
+                    text = match.group(1)
+                    break
     
-    # Step 2: Remove markdown bold/italic formatting
+    # Step 3: Remove markdown bold/italic formatting
     text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)  # **text** -> text
     text = re.sub(r'\*([^*]+)\*', r'\1', text)      # *text* -> text
     
-    # Step 3: Remove markdown headers
+    # Step 4: Remove markdown headers
     text = re.sub(r'#+\s+', '', text)  # ## Header -> Header
     
-    # Step 4: Remove section markers (case-insensitive)
+    # Step 5: Remove section markers (case-insensitive)
     section_markers = [
         r'Overview:?\s*',
         r'Detailed Logic:?\s*',
@@ -73,21 +103,21 @@ def clean_summary_for_evaluation(text):
     for marker in section_markers:
         text = re.sub(marker, '', text, flags=re.IGNORECASE)
     
-    # Step 5: Remove docstring-style formatting (Args:, Returns:, Raises:)
+    # Step 6: Remove docstring-style formatting (Args:, Returns:, Raises:)
     # But keep the content after them
     text = re.sub(r'\b(Args?|Returns?|Raises?|Parameters?|Yields?|Notes?|Examples?):?\s*', '', text, flags=re.IGNORECASE)
     
-    # Step 6: Remove code blocks
+    # Step 7: Remove code blocks
     text = re.sub(r'```[^`]*```', '', text, flags=re.DOTALL)
     text = re.sub(r'`([^`]+)`', r'\1', text)  # Inline code
     
-    # Step 7: Collapse multiple whitespaces and newlines into single spaces
+    # Step 8: Collapse multiple whitespaces and newlines into single spaces
     text = re.sub(r'\s+', ' ', text)
     
-    # Step 8: Remove leading/trailing whitespace
+    # Step 9: Remove leading/trailing whitespace
     text = text.strip()
     
-    # Step 9: If we ended up with empty text, return original
+    # Step 10: If we ended up with empty text, return original
     if not text or len(text) < 10:
         return original_text
     
