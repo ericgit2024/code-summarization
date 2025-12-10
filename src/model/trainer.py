@@ -74,8 +74,8 @@ def train(
             retrieved_codes,
             retrieved_docstrings,
             instruction=(
-                "Generate a concise docstring summary for this code.\\n"
-                "Write 1-3 sentences explaining what the code does.\\n"
+                "Generate a concise docstring summary for this code.\n"
+                "Write 1-3 sentences explaining what the code does.\n"
                 "Do NOT use markdown, bullet points, or structured sections."
             )
         )
