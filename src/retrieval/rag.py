@@ -6,17 +6,17 @@ import logging
 logger = logging.getLogger(__name__)
 
 class RAGSystem:
-    def __init__(self, model_name='microsoft/unixcoder-base'):
+    def __init__(self, model_name='sentence-transformers/all-MiniLM-L6-v2'):
         """
-        Initializes RAG system with a code-specific embedding model.
-        Falls back to all-MiniLM if unixcoder is not available/fails.
+        Initializes RAG system with a simple, reliable embedding model.
+        Using all-MiniLM-L6-v2 for stability (UniXCoder had CUDA issues).
         """
         try:
             self.encoder_model = SentenceTransformer(model_name)
             logger.info(f"Loaded RAG model: {model_name}")
         except Exception as e:
-            logger.warning(f"Failed to load {model_name}, falling back to all-MiniLM-L6-v2. Error: {e}")
-            self.encoder_model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+            logger.error(f"Failed to load {model_name}. Error: {e}")
+            raise
 
         self.index = None
         self.stored_codes = []

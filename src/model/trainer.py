@@ -54,12 +54,19 @@ def train(
     def format_prompt(example):
         structural_prompt = construct_structural_prompt(example['code'])
 
-        # DISABLE RAG during training to prevent contamination
-        # The model was copying retrieved examples into its output
+        # ENABLE RAG during training to provide similar examples for learning
+        # Using k=2 (not too many) to keep prompts manageable
         retrieved_codes = []
         retrieved_docstrings = []
-        # if rag_system:
-        #     retrieved_codes, retrieved_docstrings, _ = rag_system.retrieve(example['code'], k=1)
+        if rag_system:
+            try:
+                retrieved_codes, retrieved_metadata, _ = rag_system.retrieve(example['code'], k=2)
+                # Extract docstrings from metadata
+                retrieved_docstrings = [m.get('docstring', '') for m in retrieved_metadata]
+            except Exception as e:
+                logger.warning(f"RAG retrieval failed: {e}. Continuing without examples.")
+                retrieved_codes = []
+                retrieved_docstrings = []
 
         full_prompt = construct_prompt(
             structural_prompt,
