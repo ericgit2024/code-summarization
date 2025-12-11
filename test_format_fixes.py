@@ -27,7 +27,7 @@ def test_post_processing():
         
         # Multiple sections
         ('**Overview**: Creates product\n**Detailed Logic**: Validates then saves\n**Dependency Analysis**: Calls validate()', 
-         "Creates product Validates then saves Calls validate()"),
+         "Creates product"),
     ]
     
     passed = 0

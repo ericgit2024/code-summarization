@@ -83,41 +83,57 @@ def clean_summary_for_evaluation(text):
                     text = match.group(1)
                     break
     
-    # Step 3: Remove markdown bold/italic formatting
+    # Step 3: Truncate at detailed sections (Detailed Logic, Dependency Analysis, etc.)
+    # We want to keep only the initial overview/summary
+    stop_markers = [
+        r'###? Detailed Logic',
+        r'Detailed Logic:',
+        r'\*\*Detailed Logic\*\*[:?]?',
+        r'###? Dependency Analysis',
+        r'Dependency Analysis:',
+        r'\*\*Dependency Analysis\*\*[:?]?',
+        r'###? Structural Analysis',
+        r'Structural Analysis:',
+        r'\*\*Structural Analysis\*\*[:?]?',
+        r'###? Target Code',
+        r'Target Code Example',
+        r'###? Similar Code',
+        r'###? Instruction'
+    ]
+
+    for marker in stop_markers:
+        match = re.search(marker, text, flags=re.IGNORECASE)
+        if match:
+            text = text[:match.start()]
+
+    # Step 4: Remove "Overview" header if present (but keep content)
+    text = re.sub(r'###? Overview:?', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'\*\*Overview\*\*:?', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'Natural Language Summary:?', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'Natural Language Overview:?', '', text, flags=re.IGNORECASE)
+
+    # Step 5: Remove markdown bold/italic formatting
     text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)  # **text** -> text
     text = re.sub(r'\*([^*]+)\*', r'\1', text)      # *text* -> text
     
-    # Step 4: Remove markdown headers
+    # Step 6: Remove markdown headers (any remaining headers)
     text = re.sub(r'#+\s+', '', text)  # ## Header -> Header
     
-    # Step 5: Remove section markers (case-insensitive)
-    section_markers = [
-        r'Overview:?\s*',
-        r'Detailed Logic:?\s*',
-        r'Dependency Analysis:?\s*',
-        r'Natural Language Overview:?\s*',
-        r'Natural Language Summary:?\s*',
-        r'Target Code Examples?:?\s*',
-        r'Example \d+:?\s*'
-    ]
-    for marker in section_markers:
-        text = re.sub(marker, '', text, flags=re.IGNORECASE)
-    
-    # Step 6: Remove docstring-style formatting (Args:, Returns:, Raises:)
+    # Step 7: Remove docstring-style formatting (Args:, Returns:, Raises:)
     # But keep the content after them
     text = re.sub(r'\b(Args?|Returns?|Raises?|Parameters?|Yields?|Notes?|Examples?):?\s*', '', text, flags=re.IGNORECASE)
     
-    # Step 7: Remove code blocks
+    # Step 8: Remove code blocks
     text = re.sub(r'```[^`]*```', '', text, flags=re.DOTALL)
     text = re.sub(r'`([^`]+)`', r'\1', text)  # Inline code
     
-    # Step 8: Collapse multiple whitespaces and newlines into single spaces
+    # Step 9: Collapse multiple whitespaces and newlines into single spaces
     text = re.sub(r'\s+', ' ', text)
     
-    # Step 9: Remove leading/trailing whitespace
+    # Step 10: Remove leading/trailing whitespace
     text = text.strip()
     
-    # Step 10: If we ended up with empty text, return original
+    # Step 11: If we ended up with empty text, return original (fallback)
     if not text or len(text) < 10:
         return original_text
     
