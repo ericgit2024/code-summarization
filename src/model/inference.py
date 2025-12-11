@@ -218,11 +218,14 @@ class InferencePipeline:
     def summarize(self, code=None, function_name=None, instruction=None):
         if instruction is None:
              # SIMPLIFIED: Match CodeSearchNet docstring format (1-3 sentences, plain language)
-             instruction = (
-                 "Generate a concise docstring summary for this code.\\n"
-                 "Write 1-3 sentences explaining what the code does.\\n"
-                 "Do NOT use markdown, bullet points, or structured sections."
-             )
+            instruction = (
+                "Write a ONE-SENTENCE docstring summary.\n"
+                "Mimic CodeSearchNet style.\n"
+                "Do NOT include details, arguments, logic, steps, or structure.\n"
+                "Only say what the function does in a short phrase.\n"
+                "Example format: 'Compute X from Y.' or 'Return the Z for this object.'"
+            )
+
 
         repo_context = None
         target_meta = {}
@@ -319,17 +322,17 @@ class InferencePipeline:
         # 2. Capture Structural Prompts for UI Display
         # Pass repo_graph to get file-aware call graph
         from src.data.prompt import construct_structural_prompt
-        structural_prompt = construct_structural_prompt(code, repo_graph=self.repo_graph)
+        #structural_prompt = construct_structural_prompt(code, repo_graph=self.repo_graph)
         
         # Store for use in hierarchical prompt
-        self._current_structural_prompt = structural_prompt
+        #self._current_structural_prompt = structural_prompt
         
-        self.last_structural_prompts = {
-            "ast": get_ast_prompt(code),
-            "cfg": get_cfg_prompt(code),
-            "pdg": get_pdg_prompt(code),
-            "call_graph": structural_prompt.split("Call Graph:\n")[-1] if "Call Graph:" in structural_prompt else "N/A"
-        }
+        #self.last_structural_prompts = {
+            #"ast": get_ast_prompt(code),
+            #"cfg": get_cfg_prompt(code),
+            #"pdg": get_pdg_prompt(code),
+            #"call_graph": structural_prompt.split("Call Graph:\n")[-1] if "Call Graph:" in structural_prompt else "N/A"
+        #}
 
         # 3. Construct Hierarchical Prompt
         full_prompt = self.construct_hierarchical_prompt(
@@ -370,8 +373,8 @@ class InferencePipeline:
         with torch.no_grad():
             outputs = self.model.generate(
                 **inputs,
-                max_new_tokens=150,  # Reduced from 300 to match reference length (typically 50-100 tokens)
-                min_new_tokens=30,   # Reduced from 50 to allow shorter summaries
+                max_new_tokens=40,  # Reduced from 300 to match reference length (typically 50-100 tokens)
+                min_new_tokens=5,   # Reduced from 50 to allow shorter summaries
                 do_sample=True,
                 temperature=0.3,
                 top_p=0.9,

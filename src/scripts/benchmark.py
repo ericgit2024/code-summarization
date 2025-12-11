@@ -42,7 +42,7 @@ def run_benchmark(num_samples=20, use_agent=False):
         # Note: clean_summary_for_evaluation in InferencePipeline already handles truncation
         clean_summary = extract_overview(summary)
 
-        predictions.append(clean_summary)
+        predictions.append(summary)     # Use full summary
         full_predictions.append(summary)
         references.append(reference)
         codes.append(code)
