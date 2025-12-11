@@ -1,6 +1,7 @@
 from src.structure.ast_analyzer import get_ast_prompt
 from src.structure.graph_utils import get_cfg_prompt, get_pdg_prompt, get_call_graph
 from src.structure.repo_graph import RepoGraphBuilder
+from src.data.prompt import construct_prompt
 from src.retrieval.rag import RAGSystem
 # from src.model.model_loader import load_gemma_model, setup_lora
 try:
@@ -98,7 +99,10 @@ def clean_summary_for_evaluation(text):
         r'###? Target Code',
         r'Target Code Example',
         r'###? Similar Code',
-        r'###? Instruction'
+        r'###? Instruction',
+        r'###? Explanation',
+        r'Explanation:',
+        r'\*\*Explanation\*\*[:?]?'
     ]
 
     for marker in stop_markers:
@@ -332,12 +336,17 @@ class InferencePipeline:
         }
 
         # 3. Construct Hierarchical Prompt
-        full_prompt = self.construct_hierarchical_prompt(
+        # Align with training prompt structure
+        retrieved_codes = [item["code"] for item in retrieved_items]
+        retrieved_docstrings = [item["meta"].get("docstring", "") for item in retrieved_items]
+
+        full_prompt = construct_prompt(
+            self._current_structural_prompt,
             code,
-            metadata,
-            repo_context,
-            retrieved_items,
-            instruction
+            retrieved_codes,
+            retrieved_docstrings,
+            instruction=instruction,
+            repo_context=repo_context
         )
 
         return self.generate_response(full_prompt)
@@ -448,62 +457,6 @@ class InferencePipeline:
         print(f"{'='*60}\n")
         return summary
 
-    def construct_hierarchical_prompt(self, code, metadata, repo_context, retrieved_items, instruction):
-        """
-        Constructs a structured, hierarchical prompt.
-        Note: Structural prompt is now constructed in generate_from_code with repo_graph support.
-        """
-        sections = []
-
-        # 1. Instruction
-        sections.append(f"### Instruction\n{instruction}\n")
-
-        # 2. Target Function Info
-        sections.append("### Target Code Information")
-        if metadata:
-            args = ", ".join([f"{a['name']}" for a in metadata.get("args", [])])
-            sections.append(f"- **Signature**: def {metadata.get('name', 'unknown')}({args})")
-
-            comp = metadata.get("complexity", {})
-            sections.append(f"- **Complexity**: Cyclomatic: {comp.get('cyclomatic', 'N/A')}, LOC: {comp.get('loc', 'N/A')}")
-
-            struct = metadata.get("control_structure", {})
-            sections.append(f"- **Structure**: Loops: {struct.get('loops', 0)}, Branches: {struct.get('branches', 0)}")
-        else:
-            sections.append("- Metadata not available.")
-
-        # 3. Dependency Context (Repository Graph)
-        if repo_context and repo_context != "No context found.":
-            sections.append("\n### Dependency Context (Call Graph)")
-            sections.append("The following functions are relevant dependencies identified in the repository:")
-            sections.append(repo_context)
-        
-        # 4. Structural Analysis (now includes file-aware call graph)
-        # This is passed via the structural_prompt constructed earlier
-        if hasattr(self, '_current_structural_prompt'):
-            sections.append("\n### Structural Analysis (AST/CFG/PDG/Call Graph)")
-            sections.append(self._current_structural_prompt)
-
-        # 5. Similar Code Patterns (RAG)
-        if retrieved_items:
-            sections.append("\n### Similar Code Patterns")
-            sections.append("The following code snippets share similar logic or structure:")
-            for i, item in enumerate(retrieved_items):
-                meta = item["meta"]
-                sections.append(f"\n**Example {i+1}: {meta.get('name', 'snippet')}**")
-                doc = meta.get('docstring')
-                if doc:
-                    sections.append(f"Docstring: {doc.splitlines()[0]}...")
-                sections.append(f"Code:\n```python\n{item['code']}\n```")
-
-        # 6. Code to Summarize
-        sections.append("\n### Code to Summarize")
-        sections.append(f"```python\n{code}\n```")
-
-        # 7. Response Request
-        sections.append("\n### Summary")
-
-        return "\n".join(sections)
 
 if __name__ == "__main__":
     from unittest.mock import MagicMock
