@@ -2,7 +2,7 @@ import argparse
 from src.model.inference import InferencePipeline
 from src.data.dataset import load_and_process_dataset
 from src.utils.metrics import compute_metrics
-from src.utils.text_utils import extract_overview
+from src.utils.text_utils import extract_overview, nlp_to_codexglue
 from tqdm import tqdm
 
 def run_benchmark(num_samples=20, use_agent=False):
@@ -38,12 +38,11 @@ def run_benchmark(num_samples=20, use_agent=False):
         else:
             summary = pipeline.summarize(code)
 
-        # Extract Overview for fair comparison with docstrings
-        # Note: clean_summary_for_evaluation in InferencePipeline already handles truncation
-        clean_summary = extract_overview(summary)
+        # Process summary to match ground truth format for text metrics
+        clean_summary = nlp_to_codexglue(summary)
 
-        predictions.append(summary)     # Use full summary
-        full_predictions.append(summary)
+        predictions.append(clean_summary)  # Use cleaned summary for BLEU/ROUGE
+        full_predictions.append(summary)   # Keep full summary for SAS (Structural Accuracy)
         references.append(reference)
         codes.append(code)
 
