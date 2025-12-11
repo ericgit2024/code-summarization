@@ -1,17 +1,18 @@
+import argparse
 from src.model.inference import InferencePipeline
 from src.data.dataset import load_and_process_dataset
 from src.utils.metrics import compute_metrics
 from src.utils.text_utils import extract_overview
 from tqdm import tqdm
 
-def run_benchmark(num_samples=20):
+def run_benchmark(num_samples=20, use_agent=False):
     """
     Runs the benchmark on a subset of the test dataset.
     """
-    print("Loading test dataset...")
+    print(f"Loading test dataset (Agent: {use_agent})...")
     # Loading validation set as proxy for test if test split is large or unavailable
     dataset = load_and_process_dataset(split="validation")
-    dataset = dataset.select(range(num_samples))
+    dataset = dataset.select(range(min(len(dataset), num_samples)))
 
     print("Initializing Inference Pipeline...")
     pipeline = InferencePipeline()
@@ -28,9 +29,17 @@ def run_benchmark(num_samples=20):
         reference = example.get('docstring', example.get('summary', ''))
 
         # Generate summary
-        summary = pipeline.summarize(code)
+        if use_agent:
+            try:
+                summary = pipeline.summarize_with_agent(code=code)
+            except Exception as e:
+                print(f"Agent failed: {e}")
+                summary = pipeline.summarize(code)
+        else:
+            summary = pipeline.summarize(code)
 
         # Extract Overview for fair comparison with docstrings
+        # Note: clean_summary_for_evaluation in InferencePipeline already handles truncation
         clean_summary = extract_overview(summary)
 
         predictions.append(clean_summary)
@@ -46,4 +55,9 @@ def run_benchmark(num_samples=20):
         print(f"{key}: {value:.4f}")
 
 if __name__ == "__main__":
-    run_benchmark()
+    parser = argparse.ArgumentParser(description="Run benchmark on dataset")
+    parser.add_argument("--num_samples", type=int, default=20, help="Number of samples to evaluate")
+    parser.add_argument("--use_agent", action="store_true", help="Use Reflective Agent for generation")
+    args = parser.parse_args()
+
+    run_benchmark(num_samples=args.num_samples, use_agent=args.use_agent)
