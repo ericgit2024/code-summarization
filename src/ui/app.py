@@ -72,17 +72,56 @@ if mode == "Upload Repo Dump":
                 try:
                     with st.spinner(f"Generating summary for '{target_func}'..."):
                         if use_smart_agent:
-                            summary = pipeline.summarize_with_agent(function_name=target_func)
+                            result = pipeline.summarize_with_agent(function_name=target_func)
+
+                            # Handle dictionary return (Agent mode)
+                            if isinstance(result, dict):
+                                summary = result.get("summary", "")
+                                scores = result.get("scores", {})
+                                history = result.get("history", [])
+                                verification = result.get("verification", {})
+                            else:
+                                summary = result
+                                scores = {}
+                                history = []
+                                verification = {}
+
                             st.success("Smart Summary Generated!")
                         else:
                             summary = pipeline.summarize(function_name=target_func)
+                            scores = {}
+                            history = []
+                            verification = {}
                         
                         st.subheader("Generated Summary")
                         if summary:
                             st.write(summary)
                         else:
                             st.warning("No summary was generated.")
-                        
+
+                        # Display Agent Analysis
+                        if use_smart_agent and scores:
+                            st.divider()
+                            st.subheader("Agent Analysis")
+
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                st.markdown("#### Reflection Scores")
+                                st.write(scores)
+
+                            with col2:
+                                st.markdown("#### Verification")
+                                if verification.get("passed"):
+                                    st.success(f"Passed (Confidence: {verification.get('confidence', 'N/A')})")
+                                else:
+                                    st.error(f"Failed (Confidence: {verification.get('confidence', 'N/A')})")
+
+                            if history:
+                                with st.expander("Refinement History"):
+                                    for i, item in enumerate(history):
+                                        st.markdown(f"**Iteration {i+1}**")
+                                        st.json(item)
+
                         # Show Structural Prompts (LLM Input)
                         if hasattr(pipeline, 'last_structural_prompts') and pipeline.last_structural_prompts:
                             with st.expander("🔍 Structural Prompts (LLM Input)", expanded=False):
