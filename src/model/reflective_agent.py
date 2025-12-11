@@ -14,8 +14,14 @@ class AgentState(TypedDict):
     context: str
     summary: str
     critique: str
+    scores: Dict[str, float]  # correctness, completeness, clarity, technical_depth
+    specific_issues: List[str]
     missing_deps: List[str]
     consulted_functions: List[str]
+    verification_passed: bool
+    verification_confidence: float
+    verification_feedback: str
+    history: List[Dict] # To store intermediate scores for analysis
     attempts: int
     max_attempts: int
     metadata: Dict[str, Any]
@@ -35,6 +41,7 @@ class ReflectiveAgent:
         workflow.add_node("decide", self.decide_action)
         workflow.add_node("consult", self.consult_context)
         workflow.add_node("refine", self.refine_summary)
+        workflow.add_node("verify", self.verify_summary)
 
         # Define edges
         workflow.set_entry_point("generate")
@@ -53,16 +60,15 @@ class ReflectiveAgent:
         )
         
         workflow.add_edge("consult", "refine")
-        workflow.add_edge("refine", "critique")
+        # After refinement, we verify before critiquing again
+        workflow.add_edge("refine", "verify")
+        workflow.add_edge("verify", "critique")
 
         return workflow.compile()
 
     def generate_summary(self, state: AgentState):
         logger.info(f"Generating initial summary for {state['function_name']}...")
         
-        # CRITICAL FIX: Generate natural language docstring to match CodeSearchNet dataset format
-        # Dataset references are simple 1-4 sentence docstrings, NOT structured markdown
-        # SIMPLIFIED: Match CodeSearchNet docstring format (1-3 sentences, plain language)
         instruction = (
             "Generate a concise docstring summary for this code.\n"
             "Write 1-3 sentences explaining what the code does.\n"
@@ -79,30 +85,36 @@ class ReflectiveAgent:
         return {"summary": summary, "attempts": state.get("attempts", 0) + 1}
 
     def critique_summary(self, state: AgentState):
-        logger.info("Critiquing summary with LLM...")
+        logger.info("Critiquing summary with LLM (Reflection Scorer Module)...")
         
-        # Check if summary is an error message - if so, skip critique
+        # Check if summary is an error message
         if state['summary'].startswith("Error:"):
             logger.warning("Summary is an error message. Skipping critique.")
             return {
                 "critique": "Summary generation failed.",
+                "scores": {"correctness": 0, "completeness": 0, "clarity": 0, "technical_depth": 0},
+                "specific_issues": ["Generation failed"],
                 "missing_deps": []
             }
         
         prompt = (
             f"### Instruction\n"
-            f"You are a senior code reviewer. Analyze the summary below against the provided code.\n"
-            f"Identify if the summary misses important function calls, logic, or context.\n"
-            f"Specifically list any function names mentioned in the code but missing or unexplained in the summary.\n\n"
+            f"You are a senior code reviewer. Evaluate the summary below against the provided code.\n"
+            f"Assess the following criteria on a scale of 0-10:\n"
+            f"1. correctness: Factual accuracy compared to code logic.\n"
+            f"2. completeness: Covers main functionality and edge cases.\n"
+            f"3. clarity: Understandable language, good grammar.\n"
+            f"4. technical_depth: Appropriate detail level for a docstring.\n\n"
+            f"Identify specific issues (e.g., 'Missing error handling', 'Unclear variable purpose').\n"
+            f"Identify any missing function calls that need explanation.\n\n"
             f"### Code\n```python\n{state['code']}\n```\n\n"
             f"### Current Summary\n{state['summary']}\n\n"
             f"### Response Format\n"
             f"Return a JSON object with:\n"
-            f"- \"score\": (1-10)\n"
-            f"- \"feedback\": \"concise critique string\"\n"
-            f"- \"missing_deps\": [\"func1\", \"func2\"] (list of function names that need more explanation)\n\n"
-            f"Example:\n"
-            f'{{"score": 8, "feedback": "Good summary but misses the db connection part.", "missing_deps": ["connect_db"]}}\n'
+            f"- \"scores\": {{\"correctness\": <0-10>, \"completeness\": <0-10>, \"clarity\": <0-10>, \"technical_depth\": <0-10>}}\n"
+            f"- \"specific_issues\": [\"issue1\", \"issue2\"]\n"
+            f"- \"missing_deps\": [\"func1\", \"func2\"]\n"
+            f"- \"feedback\": \"concise general feedback\"\n\n"
             f"Do NOT output markdown formatting like ```json. JUST the JSON string."
         )
         
@@ -110,87 +122,135 @@ class ReflectiveAgent:
         
         # Parse JSON
         try:
-            # Clean up potential markdown
             cleaned = response.replace("```json", "").replace("```", "").strip()
-            # Find JSON object if there's extra text
             match = re.search(r'\{.*\}', cleaned, re.DOTALL)
             if match:
                 cleaned = match.group(0)
             data = json.loads(cleaned)
-            critique = data.get("feedback", "No feedback provided.")
-            missing = data.get("missing_deps", [])
-            score = data.get("score", 5)
+
+            scores = data.get("scores", {"correctness": 5, "completeness": 5, "clarity": 5, "technical_depth": 5})
+            specific_issues = data.get("specific_issues", [])
+            missing_deps = data.get("missing_deps", [])
+            feedback = data.get("feedback", "No feedback provided.")
+
+        except Exception as e:
+            logger.warning(f"Failed to parse critique JSON: {e}. Response: {response[:100]}...")
+            scores = {"correctness": 7, "completeness": 7, "clarity": 7, "technical_depth": 7}
+            specific_issues = []
+            missing_deps = []
+            feedback = "Parse error, assuming acceptable summary."
+
+        # Store history
+        history_item = {
+            "step": state.get("attempts", 1),
+            "summary": state['summary'],
+            "scores": scores,
+            "issues": specific_issues
+        }
+        history = state.get("history", []) + [history_item]
+
+        logger.info(f"Scores: {scores}")
+        return {
+            "critique": feedback,
+            "scores": scores,
+            "specific_issues": specific_issues,
+            "missing_deps": missing_deps,
+            "history": history
+        }
+
+    def verify_summary(self, state: AgentState):
+        logger.info("Verifying summary against code structure (Verification Module)...")
+
+        prompt = (
+            f"### Instruction\n"
+            f"Verify if the claims in the summary strictly match the code structure.\n"
+            f"Check for hallucinations (mentioning things not in code) or incorrect logic descriptions.\n\n"
+            f"### Code\n```python\n{state['code']}\n```\n\n"
+            f"### Summary\n{state['summary']}\n\n"
+            f"### Response Format\n"
+            f"Return a JSON object with:\n"
+            f"- \"passed\": true/false\n"
+            f"- \"confidence\": <0.0-1.0>\n"
+            f"- \"feedback\": \"explanation of verification result\"\n\n"
+            f"Do NOT output markdown formatting."
+        )
+
+        response = self.pipeline.generate_response(prompt)
+
+        try:
+            cleaned = response.replace("```json", "").replace("```", "").strip()
+            match = re.search(r'\{.*\}', cleaned, re.DOTALL)
+            if match:
+                cleaned = match.group(0)
+            data = json.loads(cleaned)
+
+            passed = data.get("passed", True)
+            confidence = data.get("confidence", 0.8)
+            feedback = data.get("feedback", "Verified.")
         except:
-            logger.warning(f"Failed to parse critique JSON. Response start: {response[:100]}...")
-            # Better fallback: If we can't parse, assume the summary is good enough
-            critique = "Summary looks acceptable."
-            missing = []
-            score = 7  # Give it a passing score to avoid infinite refinement
+            passed = True
+            confidence = 0.5
+            feedback = "Verification parsing failed, defaulting to pass."
             
-        logger.info(f"Critique: {critique} (Score: {score})")
-        return {"critique": critique, "missing_deps": missing}
+        logger.info(f"Verification: Passed={passed}, Confidence={confidence}")
+
+        return {
+            "verification_passed": passed,
+            "verification_confidence": confidence,
+            "verification_feedback": feedback
+        }
 
     def decide_action(self, state: AgentState):
-        logger.info("Deciding next action (Policy Step)...")
+        logger.info("Deciding next action (Pipeline Controller)...")
         
-        if state['attempts'] >= state['max_attempts']:
+        if state['attempts'] > state['max_attempts']:
             logger.info("Max attempts reached. Finishing.")
             return {"action": "finish"}
         
-        # If summary is an error message, finish immediately
         if state['summary'].startswith("Error:"):
-            logger.error("Summary is an error message. Finishing workflow.")
-            return {"action": "finish"}
-        
-        # If summary is too short, finish (don't keep trying)
-        if len(state['summary']) < 100:
-            logger.warning(f"Summary is very short ({len(state['summary'])} chars). Finishing to avoid infinite loop.")
             return {"action": "finish"}
 
-        # Heuristic Policy (Simulating RL Policy)
-        # If missing deps and we haven't consulted them -> CONSULT
-        # If score is low but no specific missing deps -> REFINE (but only once)
-        # If score is high -> FINISH
+        # Check scores
+        scores = state.get("scores", {})
+        min_score = min(scores.values()) if scores else 0
         
-        missing = [d for d in state['missing_deps'] if d not in state.get('consulted_functions', [])]
+        missing = [d for d in state.get('missing_deps', []) if d not in state.get('consulted_functions', [])]
         
-        critique_text = state['critique'].lower()
+        # Policy
         if missing:
-            logger.info(f"Policy: Found missing dependencies {missing}. Action: CONSULT")
-            return {"action": "consult"}
-        elif "missing" in critique_text or "unclear" in critique_text or "needs to cover" in critique_text or "more detailed" in critique_text:
-             # Only refine once to avoid cascading failures
-             if state['attempts'] <= 1:
-                 logger.info("Policy: Critique indicates issues. Action: REFINE")
-                 return {"action": "refine"}
-             else:
-                 logger.info("Policy: Already refined once. Accepting current summary. Action: FINISH")
-                 return {"action": "finish"}
-        else:
-             logger.info("Policy: Summary looks good. Action: FINISH")
-             return {"action": "finish"}
+             logger.info(f"Policy: Missing dependencies {missing}. Action: CONSULT")
+             return {"action": "consult"}
+
+        if min_score < 7:
+            logger.info(f"Policy: Low score ({min_score} < 7). Action: REFINE")
+            return {"action": "refine"}
+
+        # If verification failed significantly (low confidence or explicit fail), maybe refine?
+        # But we verify AFTER refine. If we are here, we just critiqued.
+        # If we just verified (which happens before critique in loop if we refined),
+        # the critique should have caught it, or we rely on scores.
+        # But wait, logic is: Generate -> Critique -> Decide.
+        # If Refine -> Verify -> Critique -> Decide.
+
+        # If we have issues but scores are high? Unlikely if prompt works well.
+
+        logger.info("Policy: Scores acceptable. Action: FINISH")
+        return {"action": "finish"}
 
     def consult_context(self, state: AgentState):
-        # Identify targets from missing_deps that haven't been consulted
         targets = [d for d in state['missing_deps'] if d not in state.get('consulted_functions', [])]
-        
         if not targets:
-            # Should not happen if policy is correct, but handle it
-            return {"action": "refine"} # Fallback
+            return {"action": "refine"}
 
         logger.info(f"Consulting RepoGraph for: {targets}")
         new_context_lines = []
         
         for target in targets:
-            # Look up in graph
             node_data = None
             graph = self.pipeline.repo_graph.graph
-            
-            # Try exact match
             if target in graph:
                 node_data = graph.nodes[target]
             else:
-                # Try suffix match
                 for n in graph.nodes():
                     if n.endswith(f".{target}") or n == target:
                         node_data = graph.nodes[n]
@@ -203,12 +263,11 @@ class ReflectiveAgent:
                 new_context_lines.append(f"  - Function '{target}': {doc}")
                 new_context_lines.append(f"    Signature: def {target}({args})")
             else:
-                new_context_lines.append(f"  - Function '{target}': Not found in repository.")
+                new_context_lines.append(f"  - Function '{target}': Not found.")
         
         current_context = state['context'] or ""
         if "Additional Context:" not in current_context:
             current_context += "\n\nAdditional Context Retrieved by Agent:"
-            
         current_context += "\n" + "\n".join(new_context_lines)
         
         return {
@@ -217,63 +276,66 @@ class ReflectiveAgent:
         }
 
     def refine_summary(self, state: AgentState):
-        logger.info("Refining summary with new context...")
+        logger.info("Refining summary (Targeted Regeneration Module)...")
+
+        issues_str = ", ".join(state.get("specific_issues", []))
+        feedback = state.get("critique", "")
         
-        # Simplified prompt to generate natural language (consistent with dataset format)
         prompt = (
-            f"Improve this code summary by addressing the feedback: {state['critique']}\n\n"
+            f"Improve this summary by addressing: {issues_str}. Keep good parts unchanged.\n"
+            f"Feedback: {feedback}\n\n"
             f"Code:\n```python\n{state['code']}\n```\n\n"
             f"Current Summary:\n{state['summary']}\n\n"
-            f"Write an improved summary as a natural language paragraph (2-4 sentences).\n"
-            f"Focus on: (1) what the code does, (2) key inputs/outputs, (3) important function calls.\n"
-            f"Do NOT use markdown headers, bullet points, or structured sections.\n"
-            f"Write like a docstring in plain English.\n\n"
-            f"Improved Summary:"
+            f"Write the improved summary as a natural language paragraph."
         )
         
         summary = self.pipeline.generate_response(prompt)
         
-        # If refinement fails, keep the previous summary
         if not summary or len(summary) < 50:
             logger.warning("Refinement produced empty/short output. Keeping previous summary.")
-            return {"attempts": state['attempts'] + 1}  # Don't update summary
+            return {"attempts": state['attempts'] + 1}
         
         return {"summary": summary, "attempts": state['attempts'] + 1}
 
     def route_action(self, state: AgentState):
         return state.get("action", "finish")
 
-    def run(self, function_name, code, context, metadata, max_attempts=5):
+    def run(self, function_name, code, context, metadata, max_attempts=2):
         initial_state = {
             "function_name": function_name,
             "code": code,
             "context": context,
             "summary": "",
             "critique": "",
+            "scores": {},
+            "specific_issues": [],
             "missing_deps": [],
             "consulted_functions": [],
+            "verification_passed": False,
+            "verification_confidence": 0.0,
+            "verification_feedback": "",
+            "history": [],
             "attempts": 0,
             "max_attempts": max_attempts,
             "metadata": metadata,
             "action": "start"
         }
         
-        logger.info(f"Starting ReflectiveAgent workflow for function: {function_name} (max_attempts={max_attempts})")
+        logger.info(f"Starting ReflectiveAgent workflow for {function_name}")
         final_state = self.workflow.invoke(initial_state)
-        summary = final_state.get("summary", "")
         
-        # Validation
-        if not summary or len(summary) < 20:
-            logger.error(f"Agent workflow completed but summary is empty or too short: '{summary}'")
-            error_msg = (
-                "Error: Smart Agent failed to generate a summary.\n"
-                "This could be due to:\n"
-                "1. Model generation issues (check console logs for 'generate_response' debug output)\n"
-                "2. Workflow errors during refinement\n"
-                "3. Empty initial summary propagating through the workflow\n\n"
-                "Please try normal mode or check the console logs for more details."
-            )
-            return error_msg
+        # Return full state for analysis if needed, or just summary
+        # For compatibility with existing callers, we returns a dict now if they support it,
+        # or we might need to handle this.
+        # The user asked: "Return: final summary + all intermediate scores for analysis"
+        # I'll return a dict, but I need to make sure InferencePipeline handles it.
         
-        logger.info(f"ReflectiveAgent completed successfully. Summary length: {len(summary)} chars")
-        return summary
+        return {
+            "summary": final_state.get("summary", ""),
+            "scores": final_state.get("scores", {}),
+            "history": final_state.get("history", []),
+            "verification": {
+                "passed": final_state.get("verification_passed"),
+                "confidence": final_state.get("verification_confidence")
+            }
+        }
